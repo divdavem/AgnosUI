@@ -1,15 +1,14 @@
 <script lang="ts">
-	import {selectedFramework$} from '../../../../lib/stores';
+	import {selectedFramework$} from '$lib/stores';
 	import Code from '$lib/layout/Code.svelte';
-	import {pathToRoot$, frameworkLessUrl$} from '../../../../lib/stores';
-	import {createModulesContext} from '../../../../app';
-	import ModuleComponent from '$lib/layout/ModuleComponent.svelte';
+	import {pathToRoot$, frameworkLessUrl$} from '$lib/stores';
 	import Section from '$lib/layout/Section.svelte';
 	$: isAngular = $selectedFramework$ === 'angular';
 	$: isReact = $selectedFramework$ === 'react';
 	$: isSvelte = $selectedFramework$ === 'svelte';
-	const modules$ = createModulesContext();
-	$: modules$.load(() => import(`../${$selectedFramework$}/index.ts`));
+
+	$: fwkDir = `./fwk/${$selectedFramework$}/`
+	const modules: Record<string, any> = import.meta.glob('./fwk/*/*.svelte', {eager: true, import: 'default'});
 </script>
 
 <!-- TODO refactor it with the header part to use the same component -->
@@ -44,7 +43,9 @@
 </Section>
 <Section label="Create a New Project" id="Create-a-New-Project" level={2}>
 	<p>
-		If you haven't already, create a new project where you want to use AgnosUI. You can use the <ModuleComponent name="Installation.svelte" /> for this.
+		If you haven't already, create a new project where you want to use AgnosUI. You can use the <svelte:component
+			this={modules[`${fwkDir}NewProject.svelte`]}
+		/> for this.
 	</p>
 </Section>
 <Section label="Install AgnosUI" id="Install-AgnosUI" level={2}>
