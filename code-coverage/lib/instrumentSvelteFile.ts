@@ -4,12 +4,23 @@ import printer from '@babel/generator/lib/printer.js';
 import {dirname} from 'path';
 import {transformFromAstSync} from '@babel/core';
 
-const printerPrototype: Record<string, (this: {print(arg: any): void}, node: any, parent: any) => void> = (printer.default ?? printer).prototype;
+const printerPrototype: Record<string, (this: {word(word: string): void; print(node: any, parent: any): void}, node: any, parent: any) => void> = (
+	printer.default ?? printer
+).prototype;
 
 // Babel does not support Svelte nodes
 // Add corresponding printer functions:
 
-printerPrototype.SvelteScriptElement = function () {};
+printerPrototype.SvelteScriptElement = function (node, parent) {
+	// debugger;
+	console.log(node);
+	this.word('<script lang="ts">');
+	for (const item of node.body) {
+		const babelNode = toBabel(item);
+		this.print(babelNode, node);
+	}
+	this.word('</script>');
+};
 printerPrototype.SvelteStyleElement = function () {};
 printerPrototype.SvelteElement = function () {};
 printerPrototype.SvelteStartTag = function () {};
@@ -44,8 +55,7 @@ export const instrumentSvelteFile = (code: string, filename: string) => {
 	const output = svelteParser.parseForESLint(code, {
 		parser: '@typescript-eslint/parser',
 	});
-	const babelAst = toBabel(output.ast);
-	const result = transformFromAstSync(babelAst, code, {
+	const result = transformFromAstSync(output.ast as any, code, {
 		filename,
 		plugins: [
 			[
@@ -58,6 +68,7 @@ export const instrumentSvelteFile = (code: string, filename: string) => {
 		],
 	});
 	if (result?.code) {
+		console.log('output code:\n', result.code);
 		return result.code;
 	}
 	return code;
