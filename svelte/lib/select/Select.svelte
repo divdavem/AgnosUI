@@ -18,8 +18,8 @@
 	const {
 		stores: {opened$, visible$, selected$, highlighted$, filterText$, className$},
 		actions: {onInputKeydown, onInput},
-		api: {unselect},
-		directives: {hasFocusDirective},
+		api: {unselect, clear},
+		directives: {hasFocusDirective, navManagerDirective},
 	} = widget;
 	widget.patch({
 		onFilterTextChange: (value) => {
@@ -40,7 +40,7 @@
 					<div class="badge rounded-pill text-bg-primary d-inline-flex align-items-center m-1">
 						<div class="me-1">{item}</div>
 						<!-- svelte-ignore a11y-click-events-have-key-events -->
-						<span role="button" tabindex="-1" aria-label="Close" on:click={() => unselect(item)}>x</span>
+						<span role="button" tabindex="-1" aria-label="Close" on:click={() => unselect(item)} use:navManagerDirective>x</span>
 					</div>
 				{/each}
 			</div>
@@ -55,7 +55,10 @@
 			autoComplete="off"
 			on:keydown={onInputKeydown}
 			on:input={onInput}
+			use:navManagerDirective
 		/>
+		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		<span role="button" tabindex="-1" use:navManagerDirective on:click={() => clear()}>clear</span>
 	</div>
 	{#if $opened$ && $visible$.length > 0}
 		<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->

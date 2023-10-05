@@ -2,6 +2,7 @@ import type {ReadableSignal} from '@amadeus-it-group/tansu';
 import {asReadable, batch, readable, writable} from '@amadeus-it-group/tansu';
 import type {Directive} from '../types';
 import {noop} from '../utils';
+import {insertElementInSortedArray, removeElementFromArray} from './arrayUtils';
 
 /**
  * Binds the given directive to a store that provides its argument.
@@ -91,9 +92,13 @@ const equalOption = {equal: Object.is};
 
 /**
  * Utility to create a store that contains an array of items.
+ * @param compare - compare function to sort the array when inserting items.
+ * If not provided, the items are in the order of insertion.
  * @returns a store containing an array of items.
  */
-export const registrationArray = <T>(): ReadableSignal<T[]> & {register: (element: T) => () => void} => {
+export const registrationArray = <T>(
+	compare: null | ((a: T, b: T) => number) = null
+): ReadableSignal<T[]> & {register: (element: T) => () => void} => {
 	const elements$ = writable([] as T[], equalOption);
 	return asReadable(elements$, {
 		/**
@@ -103,21 +108,27 @@ export const registrationArray = <T>(): ReadableSignal<T[]> & {register: (elemen
 		 */
 		register: (element: T) => {
 			let removed = false;
-			elements$.update((currentElements) => [...currentElements, element]);
+			elements$.update((currentElements) => insertElementInSortedArray(currentElements, element, compare));
 			return () => {
 				if (!removed) {
 					removed = true;
-					elements$.update((currentElements) => {
-						const index = currentElements.indexOf(element);
-						if (index > -1) {
-							const copy = [...currentElements];
-							copy.splice(index, 1);
-							return copy;
-						}
-						return currentElements; // no change
-					});
+					elements$.update((currentElements) => removeElementFromArray(currentElements, element));
 				}
 			};
+		},
+		checkSorted: (newCompare: null | ((a: T, b: T) => number) = compare) => {
+			compare = newCompare;
+			if (!newCompare) {
+				return;
+			}
+			const array = elements$();
+			for (let i = 0, l = array.length - 2; i < l; i++) {
+				if (newCompare(array[i], array[i + 1]) > 0) {
+					// one item is not well ordered, let's sort the array with the sort function
+					elements$.update((currentElements) => [...currentElements].sort(newCompare));
+					return;
+				}
+			}
 		},
 	});
 };

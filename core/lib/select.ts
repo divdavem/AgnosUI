@@ -5,6 +5,8 @@ import type {PropsConfig} from './services/stores';
 import {stateStores, writablesForProps} from './services/stores';
 import type {Widget} from './types';
 import type {WidgetsCommonPropsAndState} from './commonProps';
+import {createNavManager} from './services/navManager';
+import type {NavManager} from './services/navManager';
 
 export interface SelectCommonPropsAndState<Item> extends WidgetsCommonPropsAndState {
 	/**
@@ -206,6 +208,11 @@ export interface SelectDirectives {
 	 * Directive to be used in the input group and the menu containers
 	 */
 	hasFocusDirective: HasFocus['directive'];
+
+	/**
+	 *
+	 */
+	navManagerDirective: NavManager['directive'];
 }
 
 export interface SelectActions {
@@ -260,6 +267,7 @@ export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): Sel
 	const {selected$, filterText$} = otherProps;
 
 	const {hasFocus$, directive: hasFocusDirective} = createHasFocus();
+	const {directive: navManagerDirective} = createNavManager();
 	const opened$ = computed(() => {
 		const _dirtyOpened = _dirtyOpened$();
 		const hasFocus = hasFocus$();
@@ -418,6 +426,7 @@ export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): Sel
 		},
 		directives: {
 			hasFocusDirective,
+			navManagerDirective,
 		},
 		actions: {
 			onInput({target}: {target: HTMLInputElement}) {

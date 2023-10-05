@@ -126,12 +126,28 @@ describe('directiveUtils', () => {
 			expect(values).toEqual([[]]);
 			const unregister1 = array$.register(7);
 			expect(values).toEqual([[], [7]]);
-			const unregister2 = array$.register(8);
-			expect(values).toEqual([[], [7], [7, 8]]);
+			const unregister2 = array$.register(5);
+			expect(values).toEqual([[], [7], [7, 5]]);
 			unregister1();
-			expect(values).toEqual([[], [7], [7, 8], [8]]);
+			expect(values).toEqual([[], [7], [7, 5], [5]]);
 			unregister2();
-			expect(values).toEqual([[], [7], [7, 8], [8], []]);
+			expect(values).toEqual([[], [7], [7, 5], [5], []]);
+			unsubscribe();
+		});
+
+		it('sorted', () => {
+			const array$ = registrationArray<number>((a, b) => a - b);
+			const values: number[][] = [];
+			const unsubscribe = array$.subscribe((value) => values.push(value));
+			expect(values).toEqual([[]]);
+			const unregister1 = array$.register(7);
+			expect(values).toEqual([[], [7]]);
+			const unregister2 = array$.register(5);
+			expect(values).toEqual([[], [7], [5, 7]]);
+			unregister1();
+			expect(values).toEqual([[], [7], [5, 7], [5]]);
+			unregister2();
+			expect(values).toEqual([[], [7], [5, 7], [5], []]);
 			unsubscribe();
 		});
 	});
