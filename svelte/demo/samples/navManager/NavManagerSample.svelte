@@ -2,60 +2,27 @@
 	import type {NavManagerItemConfig} from '@agnos-ui/core';
 	import {createNavManager} from '@agnos-ui/core';
 
-	export let dir: 'rtl' | 'ltr' = 'ltr';
+	const {directive, focusLeft, focusRight, focusFirst, focusLast} = createNavManager();
 
-	const {directive, focusPrevious, focusNext} = createNavManager();
-	let divElement: HTMLDivElement;
-
-	let inputElement: HTMLInputElement;
-	let selectionStart: number | null = null;
-	let selectionEnd: number | null = null;
-	const updateSelection = () => {
-		selectionStart = inputElement.selectionStart;
-		selectionEnd = inputElement.selectionEnd;
+	const navManagerConfig: NavManagerItemConfig = {
+		keys: {
+			ArrowLeft: focusLeft,
+			ArrowRight: focusRight,
+			Home: focusFirst,
+			End: focusLast,
+		},
 	};
-
-	const keydown = () => {
-		setTimeout(updateSelection);
-	};
-
-	const setPosition = () => {
-		inputElement.focus();
-		inputElement.setSelectionRange(2, 2);
-		setTimeout(updateSelection);
-	};
-
-	$: navManagerConfig = {
-		keys:
-			dir === 'ltr'
-				? {
-						ArrowLeft: focusPrevious,
-						ArrowRight: focusNext,
-				  }
-				: {
-						ArrowLeft: focusNext,
-						ArrowRight: focusPrevious,
-				  },
-	} satisfies NavManagerItemConfig;
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div bind:this={divElement} {dir} on:keydown={keydown}>
-	<span use:directive={navManagerConfig} tabindex="-1">1</span>
-	<span use:directive={navManagerConfig} tabindex="-1">2</span>
-	<input use:directive={navManagerConfig} type="text" bind:this={inputElement} value="שָׁלוֹם abc שָׁלוֹם" />
-	<span use:directive={navManagerConfig} tabindex="-1">3</span>
-	<span use:directive={navManagerConfig} tabindex="-1">4</span>
-	<input use:directive={navManagerConfig} type="text" disabled />
-	<input use:directive={navManagerConfig} type="checkbox" disabled />
-	<span use:directive={navManagerConfig} tabindex="-1">5</span>
+<div class="d-flex">
+	<input use:directive={navManagerConfig} tabindex="-1" type="text" value="1" class="form-control me-1" />
+	<span use:directive={navManagerConfig} tabindex="-1" class="form-control w-auto me-1">2</span>
+	<input use:directive={navManagerConfig} type="text" value="" class="form-control me-1" />
+	<span use:directive={navManagerConfig} tabindex="-1" class="form-control w-auto me-1">3</span>
+	<span use:directive={navManagerConfig} tabindex="-1" class="form-control w-auto me-1">4</span>
+	<input use:directive={navManagerConfig} tabindex="-1" type="text" value="disabled" disabled class="form-control me-1" />
+	<input use:directive={navManagerConfig} tabindex="-1" type="checkbox" disabled class="form-check-input align-self-center me-1" />
+	<input use:directive={navManagerConfig} tabindex="-1" type="checkbox" class="form-check-input align-self-center me-1" />
+	<span use:directive={navManagerConfig} tabindex="-1" class="form-control w-auto me-1">5</span>
+	<input use:directive={navManagerConfig} tabindex="-1" type="text" value="6" class="form-control me-1" />
 </div>
-
-<button on:click={setPosition}>setPosition</button>
-<div>Selection: {selectionStart}-{selectionEnd}</div>
-
-<style>
-	*:focus {
-		outline: 2px solid red;
-	}
-</style>

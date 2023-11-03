@@ -2,7 +2,8 @@ import {beforeEach, describe, expect, test} from 'vitest';
 import type {NavManagerItemConfig} from './navManager';
 import {createNavManager, getKeyName, isInternalInputNavigation} from './navManager';
 
-const sendKey = (key: 'ArrowLeft' | 'ArrowRight') => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', {key, cancelable: true}));
+const sendKey = (key: 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End') =>
+	document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', {key, cancelable: true}));
 
 describe('getKeyName', () => {
 	test('Basic functionalities', () => {
@@ -131,20 +132,36 @@ describe('isInternalInputNavigation', () => {
 		expectLastEventToBe(false);
 		sendKey('ArrowRight');
 		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(false);
+		sendKey('End');
+		expectLastEventToBe(true);
 		inputElement.setSelectionRange(2, 2);
 		sendKey('ArrowLeft');
 		expectLastEventToBe(true);
 		sendKey('ArrowRight');
+		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
 		expectLastEventToBe(true);
 		inputElement.setSelectionRange(5, 5);
 		sendKey('ArrowRight');
 		expectLastEventToBe(false);
 		sendKey('ArrowLeft');
 		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
+		expectLastEventToBe(false);
 		inputElement.setSelectionRange(0, 5);
 		sendKey('ArrowRight');
 		expectLastEventToBe(true);
 		sendKey('ArrowLeft');
+		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
 		expectLastEventToBe(true);
 	});
 
@@ -156,20 +173,36 @@ describe('isInternalInputNavigation', () => {
 		expectLastEventToBe(false);
 		sendKey('ArrowLeft');
 		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(false);
+		sendKey('End');
+		expectLastEventToBe(true);
 		inputElement.setSelectionRange(2, 2);
 		sendKey('ArrowLeft');
 		expectLastEventToBe(true);
 		sendKey('ArrowRight');
+		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
 		expectLastEventToBe(true);
 		inputElement.setSelectionRange(7, 7);
 		sendKey('ArrowLeft');
 		expectLastEventToBe(false);
 		sendKey('ArrowRight');
 		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
+		expectLastEventToBe(false);
 		inputElement.setSelectionRange(0, 7);
 		sendKey('ArrowRight');
 		expectLastEventToBe(true);
 		sendKey('ArrowLeft');
+		expectLastEventToBe(true);
+		sendKey('Home');
+		expectLastEventToBe(true);
+		sendKey('End');
 		expectLastEventToBe(true);
 	});
 });
