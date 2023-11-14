@@ -1,4 +1,4 @@
-import {computed} from '@amadeus-it-group/tansu';
+import {computed, writable} from '@amadeus-it-group/tansu';
 import type {Directive} from '../types';
 import {registrationArray} from './directiveUtils';
 import {isFocusable} from './isFocusable';
@@ -61,14 +61,21 @@ export const isInternalInputNavigation = (event: KeyboardEvent) => {
 	return false;
 };
 
-export type NavManagerKeyHandler = (info: {element: HTMLElement; event: KeyboardEvent; navManager: NavManager}) => void;
+export type NavManagerKeyHandler = (info: {directiveElement: HTMLElement; event: KeyboardEvent; navManager: NavManager}) => void;
 
 export interface NavManagerItemConfig {
 	/**
-	 * Handler for each key
+	 * Handler for each key.
 	 */
 	keys?: Record<string, NavManagerKeyHandler>;
+
+	/**
+	 * Function returning the elements to include in the navigation manager.
+	 */
+	selector?: (directiveElement: HTMLElement) => Iterable<HTMLElement>;
 }
+
+const defaultSelector: NavManagerItemConfig['selector'] = (directiveElement: HTMLElement) => [directiveElement];
 
 const computeCommonAncestor = (elements: HTMLElement[]) => {
 	const length = elements.length;
@@ -84,7 +91,17 @@ const computeCommonAncestor = (elements: HTMLElement[]) => {
 };
 
 export const createNavManager = () => {
-	const elements$ = registrationArray<HTMLElement>();
+	const directiveInstances$ = registrationArray<() => Iterable<HTMLElement>>();
+	const elementsRefresh$ = writable({});
+	const refreshElements = () => elementsRefresh$.set({});
+	const elements$ = computed(() => {
+		elementsRefresh$();
+		const res: HTMLElement[] = [];
+		for (const item of directiveInstances$()) {
+			res.push(...item());
+		}
+		return res;
+	});
 	const commonAncestor$ = computed(() => computeCommonAncestor(elements$()), {equal: Object.is});
 	const elementsInDomOrder$ = computed(() => [...elements$()].sort(compareDomOrder));
 
@@ -126,35 +143,38 @@ export const createNavManager = () => {
 		(moveDirection: 1 | -1) =>
 		({
 			event,
-			element = (event?.target as HTMLElement) ?? document.activeElement,
+			referenceElement = (event?.target as HTMLElement) ?? document.activeElement,
 		}: {
 			event?: KeyboardEvent;
-			element?: HTMLElement | null;
+			referenceElement?: HTMLElement | null;
 		} = {}): HTMLElement | null => {
-			const curIndex = element ? elementsInDomOrder$().indexOf(element) : -1;
+			const curIndex = referenceElement ? elementsInDomOrder$().indexOf(referenceElement) : -1;
 			if (curIndex > -1) {
 				return preventDefaultIfRelevant(focusIndex(curIndex + moveDirection, moveDirection), event);
 			}
 			return null;
 		};
 
-	const directive: Directive<NavManagerItemConfig> = (element, config) => {
+	const directive: Directive<NavManagerItemConfig> = (directiveElement, config) => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (isInternalInputNavigation(event)) {
 				return;
 			}
 			const keyName = getKeyName(event);
 			const handler = config.keys?.[keyName];
-			handler?.({event, element, navManager});
+			if (handler) {
+				refreshElements();
+				handler({event, directiveElement, navManager});
+			}
 		};
-		element.addEventListener('keydown', onKeyDown);
-		const unregister = elements$.register(element);
+		directiveElement.addEventListener('keydown', onKeyDown);
+		const unregister = directiveInstances$.register(() => (config?.selector ?? defaultSelector)(directiveElement));
 		return {
 			update(newConfig) {
 				config = newConfig;
 			},
 			destroy() {
-				element.removeEventListener('keydown', onKeyDown);
+				directiveElement.removeEventListener('keydown', onKeyDown);
 				unregister();
 			},
 		};
@@ -177,6 +197,7 @@ export const createNavManager = () => {
 		focusLast,
 		focusLeft,
 		focusRight,
+		refreshElements,
 	};
 	return navManager;
 };

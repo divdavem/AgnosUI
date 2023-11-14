@@ -1,9 +1,9 @@
-import {beforeEach, describe, expect, test} from 'vitest';
+import {beforeEach, describe, expect, test, vi} from 'vitest';
 import type {NavManagerItemConfig} from './navManager';
 import {createNavManager, getKeyName, isInternalInputNavigation} from './navManager';
 
 const sendKey = (key: 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End') =>
-	document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', {key, cancelable: true}));
+	document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', {key, cancelable: true, bubbles: true}));
 
 describe('getKeyName', () => {
 	test('Basic functionalities', () => {
@@ -98,6 +98,93 @@ describe(`navManager`, () => {
 		directive2?.destroy?.();
 		directive3?.destroy?.();
 		directiveElementSkipped?.destroy?.();
+	});
+
+	test('Using selectors', () => {
+		parentElement.innerHTML = `
+			<div>
+				<span id="element1" tabindex="-1"></span>
+				<input type="checkbox" id="element2">
+				<input type="text" id="element3" value="some content">
+				<span id="element4" tabindex="-1"></span>
+				<input type="checkbox" disabled>
+			</div>
+		`;
+		const divElement = parentElement.firstElementChild as HTMLElement;
+		const element1 = document.getElementById('element1')!;
+		const element2 = document.getElementById('element2')!;
+		const element3 = document.getElementById('element3') as HTMLInputElement;
+		const element4 = document.getElementById('element4')!;
+		const navManager = createNavManager();
+		const selector = vi.fn(() => divElement.querySelectorAll('span,input') as NodeListOf<HTMLSpanElement | HTMLInputElement>);
+		const directive = navManager.directive(divElement, {
+			keys: {
+				ArrowRight: navManager.focusNext,
+				ArrowLeft: navManager.focusPrevious,
+			},
+			selector,
+		});
+		expect(selector).not.to.toHaveBeenCalled();
+		expect(navManager.focusLast()).toBe(element4);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(document.activeElement).toBe(element4);
+		expect(navManager.focusFirst()).toBe(element1);
+		expect(document.activeElement).toBe(element1);
+		expect(navManager.focusFirst()).toBe(element1);
+		expect(selector).not.to.toHaveBeenCalled();
+		navManager.refreshElements();
+		expect(selector).not.to.toHaveBeenCalled();
+		expect(navManager.focusFirst()).toBe(element1);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(document.activeElement).toBe(element1);
+		expect(sendKey('ArrowRight')).toBe(false);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(document.activeElement).toBe(element2);
+		expect(sendKey('ArrowRight')).toBe(false);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(document.activeElement).toBe(element3);
+		element3.setSelectionRange(0, 0);
+		expect(sendKey('ArrowRight')).toBe(true);
+		// as the cursor is not at the end yet, the focus did not move
+		expect(selector).not.to.toHaveBeenCalled();
+		expect(document.activeElement).toBe(element3);
+		element3.setSelectionRange(element3.value.length, element3.value.length);
+		expect(sendKey('ArrowRight')).toBe(false);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(document.activeElement).toBe(element4);
+		expect(sendKey('ArrowRight')).toBe(true);
+		// last element, the focus cannot move:
+		expect(document.activeElement).toBe(element4);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		// now go backward:
+		expect(sendKey('ArrowLeft')).toBe(false);
+		expect(document.activeElement).toBe(element3);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		element3.setSelectionRange(1, 1);
+		expect(sendKey('ArrowLeft')).toBe(true);
+		// as the cursor is not at the beginning yet, the focus did not move
+		expect(selector).not.to.toHaveBeenCalled();
+		expect(document.activeElement).toBe(element3);
+		element3.setSelectionRange(0, 0);
+		expect(sendKey('ArrowLeft')).toBe(false);
+		expect(document.activeElement).toBe(element2);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(sendKey('ArrowLeft')).toBe(false);
+		expect(document.activeElement).toBe(element1);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		expect(sendKey('ArrowLeft')).toBe(true);
+		expect(selector).to.toHaveBeenCalledTimes(1);
+		selector.mockClear();
+		directive?.destroy?.();
 	});
 });
 
