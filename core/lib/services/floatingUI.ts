@@ -1,11 +1,11 @@
 import {computed, derived} from '@amadeus-it-group/tansu';
 import type {ArrowOptions, AutoUpdateOptions, ComputePositionConfig, ComputePositionReturn, Derivable} from '@floating-ui/dom';
 import {arrow, autoUpdate, computePosition} from '@floating-ui/dom';
-import {noop} from '../utils';
 import {createStoreDirective, directiveSubscribe, mergeDirectives} from './directiveUtils';
 import {stateStores, writablesForProps, type PropsConfig} from './stores';
 
 import * as floatingUI from '@floating-ui/dom';
+import {promiseFulfilledResultStore} from './promiseUtils';
 export {floatingUI};
 
 export interface FloatingUIProps {
@@ -64,29 +64,28 @@ export const createFloatingUI = (propsConfig?: PropsConfig<FloatingUIProps>) => 
 		return options;
 	});
 
-	const position$ = derived(
+	const promisePosition$ = derived(
 		[floatingElement$, referenceElement$, computePositionOptions$, autoUpdateOptions$],
-		{
-			derive: (
-				[floatingElement, referenceElement, computePositionOptions, autoUpdateOptions],
-				set: (value: null | ComputePositionReturn) => void,
-			) => {
-				if (floatingElement && referenceElement) {
-					const update = async () => {
-						set(await computePosition(referenceElement, floatingElement, computePositionOptions));
-					};
-					const clean = autoUpdate(referenceElement, floatingElement, update, autoUpdateOptions);
-					return () => {
-						set(null);
-						set = noop;
-						clean();
-					};
-				}
-				return undefined;
-			},
+		([floatingElement, referenceElement, computePositionOptions, autoUpdateOptions], set) => {
+			if (floatingElement && referenceElement) {
+				const clean = autoUpdate(
+					referenceElement,
+					floatingElement,
+					() => {
+						set(computePosition(referenceElement, floatingElement, computePositionOptions));
+					},
+					autoUpdateOptions,
+				);
+				return () => {
+					set(null);
+					clean();
+				};
+			}
+			return undefined;
 		},
-		null,
+		null as null | Promise<ComputePositionReturn>,
 	);
+	const position$ = promiseFulfilledResultStore(promisePosition$, null);
 
 	const placement$ = computed(() => position$()?.placement);
 	const middlewareData$ = computed(() => position$()?.middlewareData);
