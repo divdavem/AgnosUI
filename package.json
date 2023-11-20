@@ -91,5 +91,8 @@
 		"eslint-plugin",
 		"base-po",
 		"page-objects"
-	]
+	],
+	"overrides": {
+		"svelte": "5.0.0-next.25"
+	}
 }
