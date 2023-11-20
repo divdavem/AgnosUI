@@ -1,0 +1,12 @@
+div.floatingui-demo {
+	width: 500px;
+	height: 200px;
+
+	button {
+		margin: 500px;
+	}
+	button,
+	.popover {
+		width: max-content;
+	}
+}

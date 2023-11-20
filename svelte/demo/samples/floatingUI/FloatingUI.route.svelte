@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {createFloatingUI, floatingUI} from '@agnos-ui/core';
+	import '@agnos-ui/common/samples/floatingui/floatingui.scss';
 
 	const {
 		directives: {floatingDirective, referenceDirective, arrowDirective},
@@ -38,8 +39,8 @@
 		<div
 			use:floatingDirective
 			data-popper-placement={$placement$}
-			class="popover bs-popover-auto fade position-absolute"
-			class:show={!$middlewareData$?.hide?.referenceHidden}
+			class="popover bs-popover-auto position-absolute"
+			class:invisible={$middlewareData$?.hide?.referenceHidden}
 			role="tooltip"
 		>
 			<div class="popover-arrow position-absolute" use:arrowDirective></div>
@@ -47,17 +48,3 @@
 		</div>
 	{/if}
 </div>
-
-<style>
-	div.floatingui-demo {
-		width: 500px;
-		height: 200px;
-	}
-	button {
-		margin: 500px;
-	}
-	button,
-	.popover {
-		width: max-content;
-	}
-</style>

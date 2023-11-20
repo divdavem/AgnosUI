@@ -1,5 +1,10 @@
-import {createFloatingUI, floatingUI, useDirective, useObservable} from '@agnos-ui/react';
+import {createFloatingUI, floatingUI, mergeDirectives, useDirective, useObservable} from '@agnos-ui/react';
 import {useMemo, useState} from 'react';
+import '@agnos-ui/common/samples/floatingui/floatingui.scss';
+
+const scrollIntoView = (element: HTMLElement) => {
+	element.scrollIntoView({block: 'center', inline: 'center'});
+};
 
 const FloatingUI = () => {
 	const [displayPopover, setDisplayPopover] = useState(true);
@@ -24,28 +29,22 @@ const FloatingUI = () => {
 			}),
 		[],
 	);
+	const referenceDirective = useMemo(() => mergeDirectives(floatingUIInstance.directives.referenceDirective, scrollIntoView), []);
 	const floatingUIState = useObservable(floatingUIInstance.state$);
-	const refReference = useDirective(floatingUIInstance.directives.referenceDirective);
+	const refReference = useDirective(referenceDirective);
 	const refFloating = useDirective(floatingUIInstance.directives.floatingDirective);
 	const refArrow = useDirective(floatingUIInstance.directives.arrowDirective);
 
 	return (
-		<div className="position-relative overflow-auto border border-primary-subtle floatingui-demo" style={{width: '500px', height: '200px'}}>
-			<button
-				ref={refReference}
-				type="button"
-				className="btn btn-primary"
-				onClick={() => setDisplayPopover(!displayPopover)}
-				style={{margin: '500px', width: 'max-content'}}
-			>
+		<div className="position-relative overflow-auto border border-primary-subtle floatingui-demo">
+			<button ref={refReference} type="button" className="btn btn-primary" onClick={() => setDisplayPopover(!displayPopover)}>
 				Toggle popover
 			</button>
 			{displayPopover ? (
 				<div
 					ref={refFloating}
 					data-popper-placement={floatingUIState.placement}
-					className={`popover bs-popover-auto fade position-absolute ${!floatingUIState.middlewareData?.hide?.referenceHidden ? 'show' : ''}`}
-					style={{width: 'max-content'}}
+					className={`popover bs-popover-auto position-absolute ${floatingUIState.middlewareData?.hide?.referenceHidden ? 'invisible' : ''}`}
 					role="tooltip"
 				>
 					<div className="popover-arrow position-absolute" ref={refArrow}></div>
