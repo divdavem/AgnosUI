@@ -1,24 +1,20 @@
 <script lang="ts">
-	import type {SlotContent, SlotSvelteComponent} from './slotTypes';
-	import {isSvelteComponent} from './utils';
-	import {useSvelteSlot} from './slotTypes';
+	import type {SlotContent} from './slotTypes';
+	import {isSvelteComponent, isSvelteSnippet} from './utils';
+
 	type Props = $$Generic<object>; // eslint-disable-line no-undef
-	// cf https://github.com/ota-meshi/eslint-plugin-svelte/issues/348
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	type $$Slots = {
-		default: {component: SlotSvelteComponent<Props>; props: Props};
-		slot: {props: Props};
-	};
-	export let slotContent: SlotContent<Props> = null;
-	export let props: Props;
+	let {slotContent = null, props} = $props<{
+		slotContent: SlotContent<Props>;
+		props: Props;
+	}>();
 </script>
 
-{#if slotContent === useSvelteSlot}
-	<slot name="slot" {props} />
+{#if isSvelteSnippet(slotContent)}
+	{@render slotContent(props)}
+{:else if isSvelteComponent(slotContent)}
+	<svelte:component this={slotContent} {...props} />
 {:else if typeof slotContent === 'string'}
 	{slotContent}
-{:else if slotContent && !isSvelteComponent(slotContent)}
-	{slotContent(props)}
 {:else if slotContent}
-	<slot component={slotContent} {props} />
+	{slotContent(props)}
 {/if}

@@ -2,8 +2,8 @@ import type {Widget, WidgetFactory, WidgetProps} from '@agnos-ui/core';
 import {findChangedProperties, toReadableStore} from '@agnos-ui/core';
 import type {ReadableSignal, WritableSignal} from '@amadeus-it-group/tansu';
 import {asReadable, computed, writable} from '@amadeus-it-group/tansu';
-import type {SlotContent, SlotSvelteComponent, SlotsPresent} from './slotTypes';
-import {useSvelteSlot} from './slotTypes';
+import type {ComponentType, Snippet, SvelteComponent} from 'svelte';
+import type {SlotContent} from './slotTypes';
 
 export function createPatchChangedProps<T extends object>(patchFn: (arg: Partial<T>) => void) {
 	let previousProps: Partial<T> = {};
@@ -48,36 +48,29 @@ const eventStore = <T extends any[]>(event: (...args: T) => void): WritableSigna
 
 export const callWidgetFactoryWithConfig = <W extends Widget>({
 	factory,
-	$$slots,
 	defaultConfig,
 	widgetConfig,
 	events,
 }: {
 	factory: WidgetFactory<W>;
-	$$slots: SlotsPresent<WidgetProps<W>>;
 	defaultConfig?: Partial<WidgetProps<W>> | ReadableSignal<Partial<WidgetProps<W>> | undefined>;
 	widgetConfig?: null | undefined | ReadableSignal<Partial<WidgetProps<W>> | undefined>;
 	events: Pick<WidgetProps<W>, keyof WidgetProps<W> & `on${string}Change`>;
 }): W & {patchChangedProps: W['patch']} => {
 	const defaultConfig$ = toReadableStore(defaultConfig);
-	const processedSlots: any = {};
-	for (const [name, present] of Object.entries($$slots)) {
-		if (present) {
-			processedSlots[`slot${name[0].toUpperCase()}${name.substring(1)}`] = useSvelteSlot;
-		}
-	}
 	const props: {[key in keyof WidgetProps<W>]: WritableSignal<WidgetProps<W>[key]>} = {} as any;
 	for (const event of Object.keys(events) as (keyof WidgetProps<W> & `on${string}Change`)[]) {
 		props[event] = eventStore(events[event] as any) as any;
 	}
 	const widget = factory({
-		config: computed(() => ({...defaultConfig$(), ...widgetConfig?.(), ...processedSlots})),
+		config: computed(() => ({...defaultConfig$(), ...widgetConfig?.()})),
 		props,
 	});
 	return {...widget, patchChangedProps: createPatchChangedProps(widget.patch)};
 };
 
-export const isSvelteComponent = <Props extends object>(content: SlotContent<Props>): content is SlotSvelteComponent<Props> => {
+export const isSvelteComponent = <Props extends object>(content: SlotContent<Props>): content is ComponentType<SvelteComponent<Props>> => {
+	// FIXME: update this function for svelte 5
 	// in prod mode, a svelte component has $set on its prototype
 	// in dev mode with hmr (hot module reload), a svelte component has nothing on its prototype, but its name starts with Proxy<
 	return (
@@ -86,4 +79,9 @@ export const isSvelteComponent = <Props extends object>(content: SlotContent<Pro
 		// (cf https://svelte.dev/docs/server-side-component-api)
 		typeof (content as any)?.render === 'function'
 	);
+};
+
+export const isSvelteSnippet = <Props extends object>(content: SlotContent<Props>): content is Snippet<Props> => {
+	// FIXME: implement this function for svelte 5
+	return false;
 };
