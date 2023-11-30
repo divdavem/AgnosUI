@@ -1,16 +1,14 @@
 <script lang="ts" context="module">
-	import type {SelectProps as Props, SelectWidget, SelectSlots as Slots, WidgetPropsEvents, WidgetPropsProps} from '@agnos-ui/svelte-headless';
-	import {callWidgetFactory, createEventDispatcher, createSelect} from '@agnos-ui/svelte-headless';
+	import type {SelectProps as Props, SelectWidget, SelectSlots as Slots, WidgetPropsProps} from '@agnos-ui/svelte-headless';
+	import {callWidgetFactory, createSelect} from '@agnos-ui/svelte-headless';
 </script>
 
 <script lang="ts">
 	type Item = $$Generic; // eslint-disable-line no-undef
 	// cf https://github.com/ota-meshi/eslint-plugin-svelte/issues/348
 	type $$Props = WidgetPropsProps<Props<Item>>; // eslint-disable-line @typescript-eslint/no-unused-vars
-	type $$Events = WidgetPropsEvents<Props<Item>>;
 	// cf https://github.com/ota-meshi/eslint-plugin-svelte/issues/348
 	type $$Slots = Slots<Item>; // eslint-disable-line @typescript-eslint/no-unused-vars
-	const dispatch = createEventDispatcher<$$Events>();
 
 	export let filterText: string | undefined = undefined;
 
@@ -21,7 +19,6 @@
 		events: {
 			onFilterTextChange: (value) => {
 				filterText = value;
-				dispatch('filterTextChange', value);
 			},
 		},
 	});
