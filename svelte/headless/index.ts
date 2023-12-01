@@ -3,7 +3,7 @@ export {Slot};
 
 import Slot from './Slot.svelte';
 
-export * from './utils';
+export * from './utils.svelte';
 export * from './slotTypes';
 export * from './config';
 

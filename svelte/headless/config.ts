@@ -4,7 +4,7 @@ import type {ReadableSignal} from '@amadeus-it-group/tansu';
 import {computed} from '@amadeus-it-group/tansu';
 import {getContext, setContext} from 'svelte';
 import {callWidgetFactoryWithConfig} from '.';
-import type {AdaptPropsSlots, SlotsPresent} from './slotTypes';
+import type {AdaptPropsSlots} from './slotTypes';
 
 export type WidgetsConfig = {
 	[WidgetName in keyof CoreWidgetsConfig]: AdaptPropsSlots<CoreWidgetsConfig[WidgetName]>;
@@ -66,22 +66,22 @@ export const widgetsConfigFactory = <Config extends {[widgetName: string]: objec
 	const callWidgetFactory = <W extends Widget>({
 		factory,
 		widgetName = null,
-		$$slots,
 		defaultConfig = {},
-		events,
+		props,
+		bindableProps,
 	}: {
 		factory: WidgetFactory<W>;
 		widgetName?: null | keyof Config;
-		$$slots: SlotsPresent<WidgetProps<W>>;
 		defaultConfig?: Partial<WidgetProps<W>> | ReadableSignal<Partial<WidgetProps<W>> | undefined>;
-		events: Pick<WidgetProps<W>, keyof WidgetProps<W> & `on${string}Change`>;
+		props: () => Partial<WidgetProps<W>>;
+		bindableProps: any;
 	}) =>
 		callWidgetFactoryWithConfig({
 			factory,
-			$$slots,
 			defaultConfig,
 			widgetConfig: widgetName ? (getContextWidgetConfig(widgetName) as any) : null,
-			events,
+			props,
+			bindableProps,
 		});
 
 	return {

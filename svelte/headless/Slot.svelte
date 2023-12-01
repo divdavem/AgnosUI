@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type {SlotContent} from './slotTypes';
-	import {isSvelteComponent, isSvelteSnippet} from './utils';
+	import {isSvelteComponent, isSvelteSnippet} from './utils.svelte';
 
 	type Props = $$Generic<object>; // eslint-disable-line no-undef
 	let {slotContent = null, props} = $props<{

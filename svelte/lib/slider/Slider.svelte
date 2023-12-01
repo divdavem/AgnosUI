@@ -1,21 +1,21 @@
 <script lang="ts" context="module">
-	import type {SliderProps as Props, WidgetPropsProps} from '@agnos-ui/svelte-headless';
+	import type {SliderProps as Props} from '@agnos-ui/svelte-headless';
 	import {callWidgetFactory, createSlider} from '@agnos-ui/svelte-headless';
 </script>
 
 <script lang="ts">
-	// cf https://github.com/ota-meshi/eslint-plugin-svelte/issues/348
-	type $$Props = WidgetPropsProps<Props>; // eslint-disable-line @typescript-eslint/no-unused-vars
-
-	export let values: number[] | undefined = undefined;
+	let {values, ...props} = $props<Partial<Props>>();
 
 	const widget = callWidgetFactory({
 		factory: createSlider,
 		widgetName: 'slider',
-		$$slots,
-		events: {
-			onValuesChange: function (newValues: number[]): void {
-				values = newValues;
+		props: () => props,
+		bindableProps: {
+			get values() {
+				return values;
+			},
+			set values(v) {
+				values = v;
 			},
 		},
 	});
@@ -41,9 +41,7 @@
 		},
 		actions: {click, keydown, mouseDown},
 		directives: {sliderDirective, minLabelDirective, maxLabelDirective},
-		patchChangedProps,
 	} = widget;
-	$: patchChangedProps($$props);
 </script>
 
 <!-- on:blur={onTouched} ?? -->
