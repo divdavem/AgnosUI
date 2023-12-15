@@ -3,7 +3,7 @@ import {typeBoolean, typeBooleanOrNull, typeFunction} from '../../utils/writable
 import type {ConfigValidator, Directive, PropsConfig, Widget} from '../../types';
 import {promiseWithResolve} from '../../utils/internal/promise';
 import {noop} from '../../utils/internal/func';
-import {bindableDerived, stateStores, writablesForProps} from '../../utils/stores';
+import {stateStores, writablesForProps} from '../../utils/stores';
 import {createStoreDirective, directiveSubscribe, directiveUpdate, mergeDirectives} from '../../utils/directive';
 
 /**
@@ -196,7 +196,9 @@ export const createTransition = (config?: PropsConfig<TransitionProps>): Transit
 		writablesForProps(defaultValues, config, configValidator);
 	const {element$, directive: storeDirective} = createStoreDirective();
 	const elementPresent$ = computed(() => !!element$());
-	const visible$ = bindableDerived(onVisibleChange$, [requestedVisible$], ([visible]) => visible);
+	// const visible$ = bindableDerived(onVisibleChange$, [requestedVisible$], ([visible]) => visible);
+	// TODO: when should we call onVisibleChange$ ? or should we remove it ?
+	const visible$ = requestedVisible$;
 	const currentTransition$ = writable(
 		null as null | {
 			abort: AbortController;

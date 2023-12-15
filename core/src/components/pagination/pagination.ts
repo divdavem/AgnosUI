@@ -1,6 +1,6 @@
 import {computed} from '@amadeus-it-group/tansu';
 import {INVALID_VALUE} from '../../types';
-import {bindableDerived, stateStores, writablesForProps} from '../../utils/stores';
+import {stateStores, writablesForProps} from '../../utils/stores';
 import {clamp, isNumber} from '../../utils/internal/checks';
 import {typeBoolean, typeFunction, typeNumber, typeString} from '../../utils/writables';
 import type {ConfigValidator, PropsConfig, Widget, SlotContent, WidgetSlotContext} from '../../types';
@@ -388,7 +388,12 @@ export function createPagination(config?: PropsConfig<PaginationProps>): Paginat
 		return pageCount;
 	});
 	// current page
-	const page$ = bindableDerived(onPageChange$, [_dirtyPage$, pageCount$], ([dirtyPage, pageCount]) => clamp(dirtyPage, pageCount, 1));
+	// const page$ = bindableDerived(onPageChange$, [_dirtyPage$, pageCount$], ([dirtyPage, pageCount]) => clamp(dirtyPage, pageCount, 1));
+	const page$ = computed(() => clamp(_dirtyPage$(), pageCount$(), 1));
+	const changePage = (page: number) => {
+		_dirtyPage$.set(page);
+		onPageChange$()(page);
+	};
 
 	const pages$ = computed(() => pagesFactory$()(page$(), pageCount$()));
 
@@ -419,35 +424,35 @@ export function createPagination(config?: PropsConfig<PaginationProps>): Paginat
 			 * Value is normalized between 1 and the number of page
 			 */
 			select(pageNumber: number) {
-				patch({page: pageNumber});
+				changePage(pageNumber);
 			},
 
 			/**
 			 * Select the first page
 			 */
 			first() {
-				patch({page: 1});
+				changePage(1);
 			},
 
 			/**
 			 * Select the previous page
 			 */
 			previous() {
-				patch({page: page$() - 1});
+				changePage(page$() - 1);
 			},
 
 			/**
 			 * Select the next page
 			 */
 			next() {
-				patch({page: page$() + 1});
+				changePage(page$() + 1);
 			},
 
 			/**
 			 * Select the last page
 			 */
 			last() {
-				patch({page: pageCount$()});
+				changePage(pageCount$());
 			},
 		},
 		api: {

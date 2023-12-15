@@ -7,7 +7,7 @@ import type {HasFocus} from '../../services/focustrack';
 import {createHasFocus} from '../../services/focustrack';
 import type {PropsConfig, SlotContent, Widget, WidgetSlotContext} from '../../types';
 import {noop} from '../../utils/internal/func';
-import {bindableDerived, stateStores, writablesForProps} from '../../utils/stores';
+import {stateStores, writablesForProps} from '../../utils/stores';
 import type {WidgetsCommonPropsAndState} from '../commonProps';
 
 /**
@@ -335,25 +335,16 @@ export function getSelectDefaultConfig() {
 export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): SelectWidget<Item> {
 	// Props
 	const [
-		{
-			open$: _dirtyOpen$,
-			filterText$: _dirtyFilterText$,
-			items$,
-			itemIdFn$,
-			onOpenChange$,
-			onFilterTextChange$,
-			onSelectedChange$,
-			allowedPlacements$,
-			...stateProps
-		},
+		{open$: _dirtyOpen$, filterText$, items$, itemIdFn$, onOpenChange$, onFilterTextChange$, onSelectedChange$, allowedPlacements$, ...stateProps},
 		patch,
 	] = writablesForProps<SelectProps<Item>>(defaultConfig, config);
 	const {selected$} = stateProps;
 
-	const filterText$ = bindableDerived(onFilterTextChange$, [_dirtyFilterText$]);
+	// const filterText$ = bindableDerived(onFilterTextChange$, [_dirtyFilterText$]);
 
 	const {hasFocus$, directive: hasFocusDirective} = createHasFocus();
-	const open$ = bindableDerived(onOpenChange$, [_dirtyOpen$, hasFocus$], ([_dirtyOpen, hasFocus]) => _dirtyOpen && hasFocus);
+	// const open$ = bindableDerived(onOpenChange$, [_dirtyOpen$, hasFocus$], ([_dirtyOpen, hasFocus]) => _dirtyOpen && hasFocus);
+	const open$ = computed(() => _dirtyOpen$() && hasFocus$());
 
 	const selectedContextsMap$ = computed(() => {
 		const selectedItemsContext = new Map<string, ItemContext<Item>>();
@@ -448,7 +439,9 @@ export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): Sel
 		patch,
 		api: {
 			clear() {
-				selected$.set([]);
+				const selected: Item[] = [];
+				selected$.set(selected);
+				onSelectedChange$()(selected);
 			},
 
 			select(item: Item) {
@@ -541,11 +534,14 @@ export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): Sel
 		},
 		actions: {
 			onInput({target}: {target: HTMLInputElement}) {
-				const value = target.value;
+				const filterText = target.value;
+				const open = filterText != null && filterText !== '';
 				patch({
-					open: value != null && value !== '',
-					filterText: value,
+					open,
+					filterText,
 				});
+				onFilterTextChange$()(filterText);
+				onOpenChange$()(open);
 			},
 			onInputKeydown(e: KeyboardEvent) {
 				const {ctrlKey, key} = e;
@@ -582,6 +578,7 @@ export function createSelect<Item>(config?: PropsConfig<SelectProps<Item>>): Sel
 					}
 					case 'Escape':
 						_dirtyOpen$.set(false);
+						onOpenChange$()(false);
 						break;
 					default:
 						keyManaged = false;
