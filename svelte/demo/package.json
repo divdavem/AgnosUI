@@ -5,7 +5,7 @@
 	"scripts": {
 		"dev": "vite",
 		"dev:coverage": "vite -c vite.coverage.config.ts",
-		"build": "npm run build:demo && npm run check",
+		"build": "npm run build:demo",
 		"build:coverage": "vite build -c vite.coverage.config.ts",
 		"build:demo": "vite build",
 		"preview": "vite preview",

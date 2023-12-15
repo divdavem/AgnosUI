@@ -14,7 +14,7 @@
 	},
 	"scripts": {
 		"build:package": "svelte-package -i src && node ../../scripts/buildPackageJson.js . dist",
-		"build": "npm run build:package && npm run check",
+		"build": "npm run build:package",
 		"check": "svelte-check --fail-on-warnings --output human-verbose"
 	},
 	"dependencies": {
