@@ -79,15 +79,17 @@
 				>
 					<span aria-hidden="true">
 						<Slot slotContent={$slotFirst$} props={slotContext} let:component let:props>
-							<slot slot="slot" name="first" let:props {...props} />
+							<svelte:fragment slot="slot" let:props><slot name="first" {...props} /></svelte:fragment>
 							<svelte:component this={component} {...props}>
-								<slot name="ellipsis" slot="ellipsis" let:state let:widget {state} {widget} />
-								<slot name="first" slot="first" let:state let:widget {state} {widget} />
-								<slot name="last" slot="last" let:state let:widget {state} {widget} />
-								<slot name="next" slot="next" let:state let:widget {state} {widget} />
-								<slot name="numberLabel" slot="numberLabel" let:displayedPage let:state let:widget {displayedPage} {state} {widget} />
-								<slot name="pages" slot="pages" let:state let:widget {state} {widget} />
-								<slot name="previous" slot="previous" let:state let:widget {state} {widget} />
+								<svelte:fragment slot="ellipsis" let:state let:widget><slot name="ellipsis" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="first" let:state let:widget><slot name="first" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="last" let:state let:widget><slot name="last" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="next" let:state let:widget><slot name="next" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="numberLabel" let:displayedPage let:state let:widget
+									><slot name="numberLabel" {displayedPage} {state} {widget} /></svelte:fragment
+								>
+								<svelte:fragment slot="pages" let:state let:widget><slot name="pages" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="previous" let:state let:widget><slot name="previous" {state} {widget} /></svelte:fragment>
 							</svelte:component>
 						</Slot>
 					</span>
@@ -107,15 +109,17 @@
 				>
 					<span aria-hidden="true">
 						<Slot slotContent={$slotPrevious$} props={slotContext} let:component let:props>
-							<slot slot="slot" name="previous" let:props {...props} />
+							<svelte:fragment slot="slot" let:props><slot name="previous" {...props} /></svelte:fragment>
 							<svelte:component this={component} {...props}>
-								<slot name="ellipsis" slot="ellipsis" let:state let:widget {state} {widget} />
-								<slot name="first" slot="first" let:state let:widget {state} {widget} />
-								<slot name="last" slot="last" let:state let:widget {state} {widget} />
-								<slot name="next" slot="next" let:state let:widget {state} {widget} />
-								<slot name="numberLabel" slot="numberLabel" let:displayedPage let:state let:widget {displayedPage} {state} {widget} />
-								<slot name="pages" slot="pages" let:state let:widget {state} {widget} />
-								<slot name="previous" slot="previous" let:state let:widget {state} {widget} />
+								<svelte:fragment slot="ellipsis" let:state let:widget><slot name="ellipsis" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="first" let:state let:widget><slot name="first" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="last" let:state let:widget><slot name="last" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="next" let:state let:widget><slot name="next" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="numberLabel" let:displayedPage let:state let:widget
+									><slot name="numberLabel" {displayedPage} {state} {widget} /></svelte:fragment
+								>
+								<svelte:fragment slot="pages" let:state let:widget><slot name="pages" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="previous" let:state let:widget><slot name="previous" {state} {widget} /></svelte:fragment>
 							</svelte:component>
 						</Slot>
 					</span>
@@ -123,15 +127,17 @@
 			</li>
 		{/if}
 		<Slot slotContent={$slotPages$} props={slotContext} let:component let:props>
-			<slot slot="slot" name="pages" let:props {...props} />
+			<svelte:fragment slot="slot" let:props><slot name="pages" {...props} /></svelte:fragment>
 			<svelte:component this={component} {...props}>
-				<slot name="ellipsis" slot="ellipsis" let:state let:widget {state} {widget} />
-				<slot name="first" slot="first" let:state let:widget {state} {widget} />
-				<slot name="last" slot="last" let:state let:widget {state} {widget} />
-				<slot name="next" slot="next" let:state let:widget {state} {widget} />
-				<slot name="numberLabel" slot="numberLabel" let:displayedPage let:state let:widget {displayedPage} {state} {widget} />
-				<slot name="pages" slot="pages" let:state let:widget {state} {widget} />
-				<slot name="previous" slot="previous" let:state let:widget {state} {widget} />
+				<svelte:fragment slot="ellipsis" let:state let:widget><slot name="ellipsis" {state} {widget} /></svelte:fragment>
+				<svelte:fragment slot="first" let:state let:widget><slot name="first" {state} {widget} /></svelte:fragment>
+				<svelte:fragment slot="last" let:state let:widget><slot name="last" {state} {widget} /></svelte:fragment>
+				<svelte:fragment slot="next" let:state let:widget><slot name="next" {state} {widget} /></svelte:fragment>
+				<svelte:fragment slot="numberLabel" let:displayedPage let:state let:widget
+					><slot name="numberLabel" {displayedPage} {state} {widget} /></svelte:fragment
+				>
+				<svelte:fragment slot="pages" let:state let:widget><slot name="pages" {state} {widget} /></svelte:fragment>
+				<svelte:fragment slot="previous" let:state let:widget><slot name="previous" {state} {widget} /></svelte:fragment>
 			</svelte:component>
 		</Slot>
 		{#if $directionLinks$}
@@ -147,15 +153,17 @@
 				>
 					<span aria-hidden="true">
 						<Slot slotContent={$slotNext$} props={slotContext} let:component let:props>
-							<slot slot="slot" name="next" let:props {...props} />
+							<svelte:fragment slot="slot" let:props><slot name="next" {...props} /></svelte:fragment>
 							<svelte:component this={component} {...props}>
-								<slot name="ellipsis" slot="ellipsis" let:state let:widget {state} {widget} />
-								<slot name="first" slot="first" let:state let:widget {state} {widget} />
-								<slot name="last" slot="last" let:state let:widget {state} {widget} />
-								<slot name="next" slot="next" let:state let:widget {state} {widget} />
-								<slot name="numberLabel" slot="numberLabel" let:displayedPage let:state let:widget {displayedPage} {state} {widget} />
-								<slot name="pages" slot="pages" let:state let:widget {state} {widget} />
-								<slot name="previous" slot="previous" let:state let:widget {state} {widget} />
+								<svelte:fragment slot="ellipsis" let:state let:widget><slot name="ellipsis" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="first" let:state let:widget><slot name="first" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="last" let:state let:widget><slot name="last" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="next" let:state let:widget><slot name="next" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="numberLabel" let:displayedPage let:state let:widget
+									><slot name="numberLabel" {displayedPage} {state} {widget} /></svelte:fragment
+								>
+								<svelte:fragment slot="pages" let:state let:widget><slot name="pages" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="previous" let:state let:widget><slot name="previous" {state} {widget} /></svelte:fragment>
 							</svelte:component>
 						</Slot>
 					</span>
@@ -175,15 +183,17 @@
 				>
 					<span aria-hidden="true">
 						<Slot slotContent={$slotLast$} props={slotContext} let:component let:props>
-							<slot slot="slot" name="last" let:props {...props} />
+							<svelte:fragment slot="slot" let:props><slot name="last" {...props} /></svelte:fragment>
 							<svelte:component this={component} {...props}>
-								<slot name="ellipsis" slot="ellipsis" let:state let:widget {state} {widget} />
-								<slot name="first" slot="first" let:state let:widget {state} {widget} />
-								<slot name="last" slot="last" let:state let:widget {state} {widget} />
-								<slot name="next" slot="next" let:state let:widget {state} {widget} />
-								<slot name="numberLabel" slot="numberLabel" let:displayedPage let:state let:widget {displayedPage} {state} {widget} />
-								<slot name="pages" slot="pages" let:state let:widget {state} {widget} />
-								<slot name="previous" slot="previous" let:state let:widget {state} {widget} />
+								<svelte:fragment slot="ellipsis" let:state let:widget><slot name="ellipsis" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="first" let:state let:widget><slot name="first" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="last" let:state let:widget><slot name="last" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="next" let:state let:widget><slot name="next" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="numberLabel" let:displayedPage let:state let:widget
+									><slot name="numberLabel" {displayedPage} {state} {widget} /></svelte:fragment
+								>
+								<svelte:fragment slot="pages" let:state let:widget><slot name="pages" {state} {widget} /></svelte:fragment>
+								<svelte:fragment slot="previous" let:state let:widget><slot name="previous" {state} {widget} /></svelte:fragment>
 							</svelte:component>
 						</Slot>
 					</span>
