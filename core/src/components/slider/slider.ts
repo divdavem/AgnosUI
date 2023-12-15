@@ -1,6 +1,6 @@
 import {computed, derived, writable} from '@amadeus-it-group/tansu';
 import type {WidgetsCommonPropsAndState} from '../commonProps';
-import {bindableDerived, writablesForProps} from '../../utils/stores';
+import {bindableProp, writablesForProps} from '../../utils/stores';
 import {createStoreDirective, directiveSubscribe, mergeDirectives} from '../../utils/directive';
 import {stateStores} from '../../utils/stores';
 import {typeArray, typeBoolean, typeFunction, typeNumber, typeNumberInRangeFactory} from '../../utils/writables';
@@ -259,41 +259,47 @@ export function createSlider(config?: PropsConfig<SliderProps>): SliderWidget {
 	const [
 		{
 			// dirty inputs that need adjustment:
-			min$: _dirtyMinimum$,
-			max$: _dirtyMaximum$,
+			min$,
+			max$,
 			stepSize$,
-			values$: _dirtyValues$,
+			values$,
 
 			ariaLabelHandle$,
-			onValuesChange$,
 			showValueLabels$,
 			showMinMaxLabels$,
 
 			...stateProps
 		},
 		patch,
-	] = writablesForProps(defaultSliderConfig, config, configValidator);
+	] = writablesForProps(defaultSliderConfig, config, configValidator, {
+		min: (dirtyMin): number => {
+			if (dirtyMin === dirtyMax) return defaultSliderConfig.min;
+			return Math.min(dirtyMin, dirtyMax);
+		},
+		max: (dirtyMax): number => {
+			if (dirtyMin === dirtyMax) return defaultSliderConfig.max;
+			return Math.max(dirtyMin, dirtyMax);
+		},
+		values: (dirtyValues): number[] => {
+			const min = min$();
+			const max = max$();
+			const intStepSize = _intStepSize$();
+			const decimalPrecision = _decimalPrecision$();
+			return dirtyValues.map((dv) => computeCleanValue(dv, min, max, intStepSize, decimalPrecision));
+		},
+	});
 	const {vertical$, disabled$, readonly$} = stateProps;
 	let _prevCoordinate = -1;
-	// clean inputs adjustment
-	const min$ = computed(() => {
-		if (_dirtyMinimum$() === _dirtyMaximum$()) return defaultSliderConfig.min;
-		return Math.min(_dirtyMinimum$(), _dirtyMaximum$());
-	});
-	const max$ = computed(() => {
-		if (_dirtyMinimum$() === _dirtyMaximum$()) return defaultSliderConfig.max;
-		return Math.max(_dirtyMinimum$(), _dirtyMaximum$());
-	});
+
 	const _decimalPrecision$ = computed(() => Math.max(getDecimalPrecision(stepSize$()), getDecimalPrecision(min$()), getDecimalPrecision(max$())));
 	const _intStepSize$ = computed(() => stepSize$() * Math.pow(10, _decimalPrecision$()));
 
-	const values$ = bindableDerived(
-		onValuesChange$,
-		[_dirtyValues$, min$, max$, _intStepSize$, _decimalPrecision$],
-		([dirtyValues, min, max, intStepSize, decimalPrecision]) =>
-			dirtyValues.map((dv) => computeCleanValue(dv, min, max, intStepSize, decimalPrecision)),
-		typeArray.equal,
-	);
+	const updateValue = (valueIndex: number, value: number) =>
+		values$.update((values) => {
+			const newValues = [...values];
+			newValues[valueIndex] = value;
+			return newValues;
+		});
 
 	// computed
 	const {directive: sliderDirective, element$: sliderDom$} = createStoreDirective();
@@ -464,11 +470,7 @@ export function createSlider(config?: PropsConfig<SliderProps>): SliderWidget {
 				: (clickedCoordinate - sliderDomRectOffset) / sliderDomRectSize;
 			const derivedHandleIndex = handleNumber ?? getClosestSliderHandle(clickedPercent);
 			const newValue = clickedPercent * (max$() - min$()) + min$();
-			_dirtyValues$.update((dh) => {
-				dh = [...dh];
-				dh[derivedHandleIndex] = newValue;
-				return dh;
-			});
+			updateValue(derivedHandleIndex, newValue);
 		}
 	};
 
@@ -509,33 +511,17 @@ export function createSlider(config?: PropsConfig<SliderProps>): SliderWidget {
 					switch (key) {
 						case 'ArrowDown':
 						case 'ArrowLeft':
-							_dirtyValues$.update((value) => {
-								value = [...value];
-								value[handleIndex] = values$()[handleIndex] - stepSize$();
-								return value;
-							});
+							updateValue(handleIndex, values$()[handleIndex] - stepSize$());
 							break;
 						case 'ArrowUp':
 						case 'ArrowRight':
-							_dirtyValues$.update((value) => {
-								value = [...value];
-								value[handleIndex] = values$()[handleIndex] + stepSize$();
-								return value;
-							});
+							updateValue(handleIndex, values$()[handleIndex] + stepSize$());
 							break;
 						case 'Home':
-							_dirtyValues$.update((value) => {
-								value = [...value];
-								value[handleIndex] = min$();
-								return value;
-							});
+							updateValue(handleIndex, min$());
 							break;
 						case 'End':
-							_dirtyValues$.update((value) => {
-								value = [...value];
-								value[handleIndex] = max$();
-								return value;
-							});
+							updateValue(handleIndex, max$());
 							break;
 						case 'PageUp':
 							// TODO it is optional in accessibility guidelines, so define the skip value for steps and write unit test
