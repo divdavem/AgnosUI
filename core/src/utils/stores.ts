@@ -1,6 +1,6 @@
 import type {ReadableSignal, StoreInput, StoresInputValues, WritableSignal} from '@amadeus-it-group/tansu';
 import {asReadable, asWritable, batch, computed, derived, get, readable, writable} from '@amadeus-it-group/tansu';
-import type {ConfigValidator, PropsConfig, ValuesOrReadableSignals, WritableWithDefaultOptions} from '../types';
+import type {AdjustValue, BindableProps, ConfigValidator, PropsConfig, ValuesOrReadableSignals, WritableWithDefaultOptions} from '../types';
 import {INVALID_VALUE} from '../types';
 import {identity} from './internal/func';
 
@@ -10,6 +10,10 @@ export type ToWritableSignal<P> = {
 
 export type ReadableSignals<T extends object> = {
 	[K in keyof T]?: ReadableSignal<T[K] | undefined>;
+};
+
+export type AdjustValues<T extends object> = {
+	[K in keyof T]?: AdjustValue<T[K]>;
 };
 
 export type WithoutDollar<S extends `${string}$`> = S extends `${infer U}$` ? U : never;
@@ -219,6 +223,7 @@ export const writablesWithDefault = <T extends object>(
  * value for that property
  * @param propsConfig - either a store of objects containing, for each property of `defConfig`, the default value or an object containing
  * for each property of `defConfig` either a store containing the default value or the default value itself
+ * @param bindableProps -
  * @param options - object containing, for each property of `defConfig`, an optional object with the following optional functions: normalizeValue and equal
  * @returns an array with two items: the first one containing the writables (returned by {@link writablesWithDefault}),
  * and the second one containing the patch function (returned by {@link createPatch})
@@ -242,11 +247,18 @@ export const writablesWithDefault = <T extends object>(
 export const writablesForProps = <T extends object>(
 	defConfig: T,
 	propsConfig?: PropsConfig<T>,
+	bindableProps: AdjustValues<BindableProps<T>> = {},
 	options?: {[K in keyof T]?: WritableWithDefaultOptions<T[K]>},
-): [ToWritableSignal<T>, ReturnType<typeof createPatch<T>>] => {
-	const stores = writablesWithDefault(defConfig, propsConfig, options);
-	return [stores, createPatch(stores)];
+): [ToWritableSignal<BindableProps<T>> & ToReadableSignal<NonBindableProps<T>>, ReturnType<typeof createPatch<T>>] => {
+	const writableStores = writablesWithDefault(defConfig, propsConfig, options);
+	const patch = createPatch(writableStores);
+	const stores = {};
+	for (const store of Object.keys(bindableProps)) {
+	}
+	return [stores, patch];
 };
+
+const b = writablesForProps({hello: 1, onHelloChange: 2}, {}, {hello: (value) => value}, {});
 
 export const stateStores = <A extends {[key in `${string}$`]: ReadableSignal<any>}>(
 	inputStores: A,
