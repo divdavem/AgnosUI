@@ -85,9 +85,13 @@ export type WidgetFactory<W extends Widget> = (props?: PropsConfig<WidgetProps<W
 export type Directive<T = void> = (node: HTMLElement, args: T) => void | {update?: (args: T) => void; destroy?: () => void};
 
 export type SlotContent<Props extends object = object> = undefined | null | string | ((props: Props) => string);
+export type BindableProps<Props extends object> = {
+	[P in string & keyof Props as `on${Capitalize<P>}Change` extends keyof Props ? P : never]: Props[P];
+};
 
 export const INVALID_VALUE = Symbol();
 export type NormalizeValue<T> = (value: T) => T | typeof INVALID_VALUE;
+export type AdjustValue<T> = (value: T) => T;
 
 export interface WritableWithDefaultOptions<T> {
 	/**
