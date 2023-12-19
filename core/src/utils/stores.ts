@@ -1,12 +1,16 @@
 import type {ReadableSignal, StoreInput, StoresInputValues, WritableSignal} from '@amadeus-it-group/tansu';
 import {asReadable, asWritable, batch, computed, derived, get, readable, writable} from '@amadeus-it-group/tansu';
-import type {AdjustValue, BindableProps, ConfigValidator, PropsConfig, ValuesOrReadableSignals, WritableWithDefaultOptions} from '../types';
+import type {AdjustValue, BindableProps, ConfigValidator, PropsConfig, WithDollars, WritableWithDefaultOptions} from '../types';
 import {INVALID_VALUE} from '../types';
 import {identity} from './internal/func';
 
-export type ToWritableSignal<P> = {
-	[K in keyof P as `${K & string}$`]-?: WritableSignal<P[K], P[K] | undefined>;
-};
+export type ToWritableSignal<P> = WithDollars<{
+	[K in keyof P]-?: WritableSignal<P[K], P[K] | undefined>;
+}>;
+
+export type ToReadableSignal<P> = WithDollars<{
+	[K in keyof P]-?: ReadableSignal<P[K]>;
+}>;
 
 export type ReadableSignals<T extends object> = {
 	[K in keyof T]?: ReadableSignal<T[K] | undefined>;
@@ -46,7 +50,7 @@ export function createPatch<T extends object>(stores: ToWritableSignal<T>) {
 	return function <U extends Partial<T>>(storesValues?: U | void) {
 		batch(() => {
 			for (const [name, value] of Object.entries(storesValues ?? {})) {
-				(stores as any)[`${name}$`]?.set(value);
+				(stores as any)[`${name}$`]?.set?.(value);
 			}
 		});
 	};
@@ -149,10 +153,7 @@ export const toReadableStore = <T>(x: ReadableSignal<T> | T) => (isStore(x) ? x 
  */
 export const toWritableStore = <T>(x: WritableSignal<T> | T) => (isStore(x) ? x : writable(x));
 
-export const normalizeConfigStores = <T extends object>(
-	keys: (keyof T)[],
-	config?: ReadableSignal<Partial<T>> | ValuesOrReadableSignals<T>,
-): ReadableSignals<T> => {
+export const normalizeConfigStores = <T extends object>(keys: (keyof T)[], config?: PropsConfig<T>['config']): ReadableSignals<T> => {
 	const res: ReadableSignals<T> = {};
 	if (config) {
 		const configIsStore = isStore(config);
@@ -217,15 +218,31 @@ export const writablesWithDefault = <T extends object>(
 	return res as ToWritableSignal<T>;
 };
 
+const adjustStore = <T>(
+	writableStore$: WritableSignal<T, T | undefined>,
+	onChange$?: ReadableSignal<(value: T) => void>,
+	adjustValue: AdjustValue<T> = identity,
+	equal?: (a: T, b: T) => boolean,
+) => {
+	const value$ = adjustValue ? computed(() => adjustValue(writableStore$()), {equal}) : writableStore$;
+	return onChange$
+		? asWritable(value$, (newValue) => {
+				newValue = adjustValue(newValue);
+				writableStore$.set(newValue);
+				onChange$()(newValue);
+			})
+		: asReadable(value$);
+};
+
 /**
- * Shortcut for calling both {@link writablesWithDefault} and {@link createPatch} in one call.
+ * Shortcut for calling {@link writablesWithDefault}, {@link createPatch} and {@link adjustStore} in one call.
  * @param defConfig - object containing, for each property, a default value to use in case `config` does not provide the suitable default
  * value for that property
  * @param propsConfig - either a store of objects containing, for each property of `defConfig`, the default value or an object containing
  * for each property of `defConfig` either a store containing the default value or the default value itself
- * @param bindableProps -
  * @param options - object containing, for each property of `defConfig`, an optional object with the following optional functions: normalizeValue and equal
- * @returns an array with two items: the first one containing the writables (returned by {@link writablesWithDefault}),
+ * @param adjustValues - object containing, for each property object containing, for each property of `defConfig`, an optional object with the following optional functions: normalizeValue and equal
+ * @returns an array with two items: the first one containing the readables or writables (returned by {@link writablesWithDefault}),
  * and the second one containing the patch function (returned by {@link createPatch})
  *
  * @example With a store
@@ -247,18 +264,24 @@ export const writablesWithDefault = <T extends object>(
 export const writablesForProps = <T extends object>(
 	defConfig: T,
 	propsConfig?: PropsConfig<T>,
-	bindableProps: AdjustValues<BindableProps<T>> = {},
 	options?: {[K in keyof T]?: WritableWithDefaultOptions<T[K]>},
-): [ToWritableSignal<BindableProps<T>> & ToReadableSignal<NonBindableProps<T>>, ReturnType<typeof createPatch<T>>] => {
+	adjustValues?: AdjustValues<T>,
+): [
+	ToWritableSignal<BindableProps<T>> & ToReadableSignal<Omit<T, `on${string}Change` | keyof BindableProps<T>>>,
+	ReturnType<typeof createPatch<T>>,
+] => {
 	const writableStores = writablesWithDefault(defConfig, propsConfig, options);
 	const patch = createPatch(writableStores);
-	const stores = {};
-	for (const store of Object.keys(bindableProps)) {
+	const stores: any = {};
+	for (const prop of Object.keys(defConfig) as (string & keyof T)[]) {
+		if (prop.startsWith('on') && prop.endsWith('Change')) continue;
+		const propDollar = `${prop}$`;
+		const writableStore$ = (writableStores as any)[propDollar];
+		const onChange$ = (stores as any)[`on${prop[0].toUpperCase()}${propDollar.substring(1)}`];
+		stores[propDollar] = adjustStore(writableStore$, onChange$, adjustValues?.[prop], options?.[prop]?.equal);
 	}
 	return [stores, patch];
 };
-
-const b = writablesForProps({hello: 1, onHelloChange: 2}, {}, {hello: (value) => value}, {});
 
 export const stateStores = <A extends {[key in `${string}$`]: ReadableSignal<any>}>(
 	inputStores: A,

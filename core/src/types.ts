@@ -1,25 +1,33 @@
 import type {ReadableSignal, StoreOptions, SubscribableStore, WritableSignal} from '@amadeus-it-group/tansu';
 
-export type ValuesOrReadableSignals<T extends object> = {
-	[K in keyof T]?: ReadableSignal<T[K] | undefined> | T[K];
+export type WithDollars<P extends object> = {
+	[K in keyof P as `${K & string}$`]: P[K];
 };
 
-export type ValuesOrWritableSignals<T extends object> = {
-	[K in keyof T]?: WritableSignal<T[K] | undefined> | T[K];
+export type ReadableSignals<P extends object> = {
+	[K in keyof P]: ReadableSignal<P[K]>;
 };
 
 export interface PropsConfig<U extends object> {
 	/**
 	 * Object containing, for each property, either its initial value, or a store that will contain the value at any time.
+	 * The store can be either readable or writable. If the store is only readable (with no set method), the property
+	 * cannot change (patching the property will do nothing).
 	 * When the value of a property is undefined or invalid, the value from the config is used.
 	 */
-	props?: ValuesOrWritableSignals<U>;
+	props?: {
+		[K in keyof U]?: U[K] | ReadableSignal<U[K] | undefined> | WritableSignal<U[K] | undefined>;
+	};
 
 	/**
 	 * Either a store of objects containing, for each property, the default value,
 	 * or an object containing, for each property, either a store containing the default value or the default value itself.
 	 */
-	config?: ReadableSignal<Partial<U>> | ValuesOrReadableSignals<Partial<U>>;
+	config?:
+		| ReadableSignal<Partial<U>>
+		| {
+				[K in keyof U]?: U[K] | ReadableSignal<U[K] | undefined>;
+		  };
 }
 
 export interface Widget<
@@ -36,7 +44,7 @@ export interface Widget<
 	/**
 	 * the different stores of the widget, all reactive
 	 */
-	stores: {[K in keyof State as `${K & string}$`]: ReadableSignal<State[K]>};
+	stores: WithDollars<ReadableSignals<State>>;
 
 	/**
 	 * Modify the parameter values, and recalculate the stores accordingly
