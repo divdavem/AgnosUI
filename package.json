@@ -151,6 +151,7 @@
 		"svelte/headless",
 		"svelte/lib",
 		"svelte/demo",
+		"svelte/ssr-app",
 		"demo",
 		"eslint-plugin",
 		"base-po",
