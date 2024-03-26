@@ -411,3 +411,41 @@ export const attributesData = <T extends any[]>(
 		instances.forEach((instance) => instance?.destroy?.());
 	}
 };
+
+/**
+ * Creates a directive for adding specified CSS class names to an HTML element.
+ *
+ * @param className - A CSS class name to be added.
+ * @returns A directive object with bound class names.
+ */
+export function createClassDirective(className: string) {
+	return createAttributesDirective(() => ({attributes: {class: className}}));
+}
+
+/**
+ * Returns JSON representation of the attributes to be applied derived from a list of directives.
+ *
+ * @param directives - List of directives to generate attributes from. Each parameter can be the directive or an array with the directive and its parameter
+ * @returns JSON object with name/value for the attributes
+ */
+export function directiveAttributes<T extends any[]>(...directives: {[K in keyof T]: DirectiveAndParam<T[K]> | Directive<void>}) {
+	const {attributes, classNames, style} = attributesData(...directives);
+	if (classNames.length) {
+		attributes['class'] = classNames.join(' ');
+	}
+	const stringStyle = Object.entries(style)
+		.filter(([, value]) => !!value)
+		.map(([name, value]) => `${name}: ${value};`)
+		.join('');
+	if (stringStyle.length) {
+		attributes['style'] = stringStyle;
+	}
+	return attributes;
+}
+
+/**
+ * Same as {@link directiveAttributes}, but returns an empty object when run in a browser environement.
+ *
+ * @returns JSON object with name/value for the attributes
+ */
+export const ssrAttributes: typeof directiveAttributes = BROWSER ? () => ({}) : directiveAttributes;
