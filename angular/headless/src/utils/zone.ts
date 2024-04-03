@@ -1,4 +1,5 @@
 import {Injectable, NgZone, inject} from '@angular/core';
+import {copyDirectiveExecutableInfo} from './directive';
 
 const noop = () => {};
 const identity = <T>(a: T) => a;
@@ -18,10 +19,10 @@ const createObjectWrapper =
 		return res;
 	};
 
-const createReturnValueWrapper =
+const createDirectiveWrapper =
 	(wrapReturnValue: Wrapper, wrapResult: Wrapper): Wrapper =>
 	(fn) =>
-		wrapResult(typeof fn === 'function' ? (((...args: any[]) => wrapReturnValue(fn(...args))) as any) : fn);
+		copyDirectiveExecutableInfo(fn, wrapResult(typeof fn === 'function' ? (((...args: any[]) => wrapReturnValue(fn(...args))) as any) : fn));
 
 @Injectable({
 	providedIn: 'root',
@@ -64,13 +65,13 @@ export class ZoneWrapper {
 	insideNgZone: Wrapper = this.#hasZone
 		? (fn) => (typeof fn === 'function' ? (((...args: any[]) => this.ngZoneRun(() => fn(...args))) as any) : fn)
 		: identity;
-	insideNgZoneWrapFunctionsObject = createObjectWrapper(this.insideNgZone);
+	insideNgZoneWrapFunctionsObject = this.#hasZone ? createObjectWrapper(this.insideNgZone) : identity;
 
 	outsideNgZone: Wrapper = this.#hasZone
 		? (fn) => (typeof fn === 'function' ? (((...args: any[]) => this.#zone.runOutsideAngular(() => fn(...args))) as any) : fn)
 		: identity;
 
-	outsideNgZoneWrapFunctionsObject = createObjectWrapper(this.outsideNgZone);
-	outsideNgZoneWrapDirective = createReturnValueWrapper(this.outsideNgZoneWrapFunctionsObject, this.outsideNgZone);
-	outsideNgZoneWrapDirectivesObject = createObjectWrapper(this.outsideNgZoneWrapDirective);
+	outsideNgZoneWrapFunctionsObject = this.#hasZone ? createObjectWrapper(this.outsideNgZone) : identity;
+	outsideNgZoneWrapDirective = this.#hasZone ? createDirectiveWrapper(this.outsideNgZoneWrapFunctionsObject, this.outsideNgZone) : identity;
+	outsideNgZoneWrapDirectivesObject = this.#hasZone ? createObjectWrapper(this.outsideNgZoneWrapDirective) : identity;
 }

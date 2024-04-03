@@ -4,7 +4,7 @@ import type {ConfigValidator, Directive, PropsConfig, Widget} from '../../types'
 import {promiseWithResolve} from '../../utils/internal/promise';
 import {noop} from '../../utils/internal/func';
 import {bindableDerived, stateStores, writablesForProps} from '../../utils/stores';
-import {createStoreDirective, directiveSubscribe, directiveUpdate, mergeDirectives} from '../../utils/directive';
+import {createStoreDirective, directiveForSSR, directiveSubscribe, directiveUpdate, mergeDirectives} from '../../utils/directive';
 
 /**
  * Function that implements a transition.
@@ -338,7 +338,11 @@ export const createTransition = (config?: PropsConfig<TransitionProps>): Transit
 		}
 	};
 
-	const directive = mergeDirectives<void | Partial<TransitionProps>>(storeDirective, directiveUpdate(patch), directiveSubscribe(visibleAction$));
+	const directive = mergeDirectives<void | Partial<TransitionProps>>(
+		directiveForSSR(storeDirective),
+		directiveForSSR(directiveUpdate(patch)),
+		directiveForSSR(directiveSubscribe(visibleAction$)),
+	);
 
 	return {
 		...stateStores({

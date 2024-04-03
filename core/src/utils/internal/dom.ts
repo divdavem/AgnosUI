@@ -1,5 +1,5 @@
 import type {ReadableSignal} from '@amadeus-it-group/tansu';
-import type {AttributeValue, StyleValue} from '../../types';
+import type {AttributeValue, SSRHTMLElement, StyleKey, StyleValue} from '../../types';
 
 /**
  * Returns the common ancestor of the provided DOM elements.
@@ -108,7 +108,7 @@ let idCount = 0;
 export const generateId = () => `auId-${idCount++}`;
 const notEmpty = (value: any) => value != null && value !== false;
 
-function classNamesSubscribe(node: HTMLElement, classNames$: ReadableSignal<string>) {
+function classNamesSubscribe(node: HTMLElement | SSRHTMLElement, classNames$: ReadableSignal<string>) {
 	let currentClassNames = new Set<string>();
 
 	return classNames$.subscribe((newClassName: AttributeValue) => {
@@ -125,7 +125,7 @@ function classNamesSubscribe(node: HTMLElement, classNames$: ReadableSignal<stri
 	});
 }
 
-function attributeSubscribe(node: HTMLElement, attributeName: string, value$: ReadableSignal<AttributeValue>) {
+function attributeSubscribe(node: HTMLElement | SSRHTMLElement, attributeName: string, value$: ReadableSignal<AttributeValue>) {
 	return value$.subscribe((value) => {
 		if (notEmpty(value)) {
 			node.setAttribute(attributeName, '' + (value === true ? '' : value));
@@ -147,7 +147,7 @@ function attributeSubscribe(node: HTMLElement, attributeName: string, value$: Re
  *
  * @returns unsubscription method to remove the binding
  */
-export function bindAttribute(node: HTMLElement, attributeName: string, value$: ReadableSignal<AttributeValue>) {
+export function bindAttribute(node: HTMLElement | SSRHTMLElement, attributeName: string, value$: ReadableSignal<AttributeValue>) {
 	const isClass = attributeName === 'class';
 	return isClass
 		? classNamesSubscribe(node, value$ as ReadableSignal<string>) // Specific case for classnames
@@ -165,10 +165,10 @@ export function bindAttribute(node: HTMLElement, attributeName: string, value$: 
  *
  * @returns unsubscription method to remove the binding
  */
-export function bindStyle(node: HTMLElement, styleName: string, value$: ReadableSignal<StyleValue>) {
+export function bindStyle(node: HTMLElement | SSRHTMLElement, styleName: StyleKey, value$: ReadableSignal<StyleValue>) {
 	return value$.subscribe((value) => {
 		const style = node.style;
-		style[styleName as any] = '' + (notEmpty(value) ? value : '');
+		style[styleName] = '' + (notEmpty(value) ? value : '');
 	});
 }
 
@@ -182,7 +182,7 @@ export function bindStyle(node: HTMLElement, styleName: string, value$: Readable
  *
  * @returns unsubscription method to remove the binding
  */
-export function bindClassName(node: HTMLElement, className: string, value$: ReadableSignal<boolean>) {
+export function bindClassName(node: HTMLElement | SSRHTMLElement, className: string, value$: ReadableSignal<boolean>) {
 	const unsubscribe = value$.subscribe((isPresent) => {
 		node.classList.toggle(className, isPresent);
 	});
