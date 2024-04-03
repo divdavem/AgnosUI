@@ -384,7 +384,7 @@ describe('directive', () => {
 			};
 
 			const directive = createAttributesDirective(() => props);
-			const {destroy} = directive(node);
+			const {destroy} = directive(node)!;
 
 			expect(node.getAttribute('class')).toBe('a b c');
 
@@ -426,14 +426,14 @@ describe('directive', () => {
 			}
 
 			const directive = createAttributesDirective(getProps);
-			const {update, destroy} = directive(node, {classnames: 'aa bb', classC: true, classD: false});
+			const {update, destroy} = directive(node, {classnames: 'aa bb', classC: true, classD: false})!;
 
 			expect(node.getAttribute('class')).toBe('extra aa bb cc');
 
-			update({classnames: 'aa', classC: true, classD: false});
+			update!({classnames: 'aa', classC: true, classD: false});
 			expect(node.getAttribute('class')).toBe('extra aa cc');
 
-			update({classnames: 'aa', classC: false, classD: true});
+			update!({classnames: 'aa', classC: false, classD: true});
 			expect(node.getAttribute('class')).toBe('extra aa dd');
 
 			destroy!();

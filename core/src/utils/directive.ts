@@ -1,9 +1,53 @@
 import type {ReadableSignal} from '@amadeus-it-group/tansu';
 import {asReadable, batch, readable, writable} from '@amadeus-it-group/tansu';
-import type {AttributeValue, Directive, StyleValue} from '../types';
+import {BROWSER} from 'esm-env';
+import type {AttributeValue, Directive, SSRExecutableDirective, SSRCompatibleDirective, SSRHTMLElement, StyleKey, StyleValue} from '../types';
 import {addEvent, bindAttribute, bindClassName, bindStyle} from './internal/dom';
 import {noop} from './internal/func';
+import {ssrHTMLElement, ssrHTMLElementAttributesAndStyle} from './internal/ssrHTMLElement';
 import {toReadableStore} from './stores';
+
+/**
+ * Returns true if the given directive is an SSRExecutableDirective.
+ * @param directive - directive to check
+ * @returns true if the directive is an SSRExecutableDirective, false otherwise.
+ */
+export const isSSRExecutableDirective = <T, U extends SSRHTMLElement>(directive: Directive<T, U>): directive is SSRExecutableDirective<T, U> =>
+	!!(directive as any).ssr;
+
+/**
+ * Returns true if the given directive is an SSRExecutableDirective that has the same implementation for SSR and CSR.
+ * @param directive - directive to check
+ * @returns true if the directive is an SSRExecutableDirective with the same implementation for SSR and CSR, false otherwise.
+ */
+export const isSelfSSRExecutableDirective = <T, U extends SSRHTMLElement>(
+	directive: Directive<T, U>,
+): directive is SSRExecutableDirective<T, SSRHTMLElement> => directive === (directive as any).ssr;
+
+export function makeSSRExecutable<T>(
+	directive: SSRCompatibleDirective<T>,
+	ssrDirective?: SSRCompatibleDirective<T>,
+): SSRExecutableDirective<T, SSRHTMLElement>;
+
+export function makeSSRExecutable<T, U extends SSRHTMLElement>(
+	directive: Directive<T, U>,
+	ssrDirective: SSRCompatibleDirective<T>,
+): SSRExecutableDirective<T, U>;
+
+/**
+ * Makes the given directive an SSRExecutableDirective.
+ * @param directive - directive to make an SSRExecutableDirective
+ * @param ssrDirective - directive to execute server-side, if different from the directive
+ * @returns input directive after its ssr property has been set
+ */
+export function makeSSRExecutable<T, U extends SSRHTMLElement>(
+	directive: Directive<T, U>,
+	ssrDirective?: SSRCompatibleDirective<T>,
+): SSRExecutableDirective<T, U> {
+	const res = directive as SSRExecutableDirective<T, U>;
+	res.ssr = ssrDirective ?? (res as any);
+	return res;
+}
 
 /**
  * Binds the given directive to a store that provides its argument.
@@ -18,10 +62,13 @@ import {toReadableStore} from './stores';
  * @param directiveArg$ - store containing the argument of the directive
  * @returns The bound directive that can be used with no argument.
  */
-export const bindDirective = <T>(directive: Directive<T>, directiveArg$: ReadableSignal<T>): Directive => {
-	return (element) => {
+export const bindDirective = <T, U extends SSRHTMLElement = HTMLElement>(
+	directive: Directive<T, U>,
+	directiveArg$: ReadableSignal<T>,
+): Directive<void, U> => {
+	const res: Directive<void, U> = (element) => {
 		let firstTime = true;
-		let instance: ReturnType<Directive<T>> | undefined;
+		let instance: ReturnType<Directive<T, U>> | undefined;
 		const unsubscribe = directiveArg$.subscribe((value) => {
 			if (firstTime) {
 				firstTime = false;
@@ -37,6 +84,12 @@ export const bindDirective = <T>(directive: Directive<T>, directiveArg$: Readabl
 			},
 		};
 	};
+	return isSSRExecutableDirective(directive)
+		? makeSSRExecutable(
+				res,
+				isSelfSSRExecutableDirective(directive) ? (res as SSRCompatibleDirective<void>) : bindDirective(directive.ssr, directiveArg$),
+			)
+		: res;
 };
 
 const noArg = readable(undefined);
@@ -48,7 +101,7 @@ const noArg = readable(undefined);
  * @param directive - directive to wrap
  * @returns The resulting directive.
  */
-export const bindDirectiveNoArg = <T>(directive: Directive<T | void>) => bindDirective(directive, noArg);
+export const bindDirectiveNoArg = <T, U extends SSRHTMLElement = HTMLElement>(directive: Directive<T | void, U>) => bindDirective(directive, noArg);
 
 /**
  * Maps the argument to another argument of a directive using a provided function.
@@ -57,9 +110,8 @@ export const bindDirectiveNoArg = <T>(directive: Directive<T | void>) => bindDir
  * @param fn - The function to map the argument.
  * @returns A new directive that applies the mapping function to the argument.
  */
-export const mapDirectiveArg =
-	<T, U>(directive: Directive<U>, fn: (arg: T) => U): Directive<T> =>
-	(node, arg) => {
+export const mapDirectiveArg = <T, U, V extends SSRHTMLElement = HTMLElement>(directive: Directive<U, V>, fn: (arg: T) => U): Directive<T, V> => {
+	const res: Directive<T, V> = (node, arg) => {
 		const instance = directive(node, fn(arg));
 		return {
 			update: (arg) => {
@@ -68,6 +120,10 @@ export const mapDirectiveArg =
 			destroy: () => instance?.destroy?.(),
 		};
 	};
+	return isSSRExecutableDirective(directive)
+		? makeSSRExecutable(res, isSelfSSRExecutableDirective(directive) ? (res as SSRCompatibleDirective<T>) : mapDirectiveArg(directive.ssr, fn))
+		: res;
+};
 /**
  * Returns a directive that subscribes to the given store while it is used on a DOM element,
  * and that unsubscribes from it when it is no longer used.
@@ -78,7 +134,7 @@ export const mapDirectiveArg =
  * @returns The resulting directive.
  */
 export const directiveSubscribe =
-	(store: ReadableSignal<any>, asyncUnsubscribe = true): Directive =>
+	(store: ReadableSignal<any>, asyncUnsubscribe = true): SSRCompatibleDirective =>
 	() => {
 		const unsubscribe = store.subscribe(noop);
 		return {
@@ -99,7 +155,7 @@ export const directiveSubscribe =
  * @returns The resulting directive.
  */
 export const directiveUpdate =
-	<T>(update: (arg: T) => void): Directive<T> =>
+	<T>(update: (arg: T) => void): SSRCompatibleDirective<T> =>
 	(element, arg) => {
 		update(arg);
 		return {
@@ -212,9 +268,8 @@ export const createStoreDirective = (): {directive: Directive; element$: Readabl
  * @param args - directives to merge into a single directive.
  * @returns The resulting merged directive.
  */
-export const mergeDirectives =
-	<T>(...args: (Directive<T> | Directive)[]): Directive<T> =>
-	(element, arg) => {
+export const mergeDirectives = <T, U extends SSRHTMLElement = HTMLElement>(...args: (Directive<T, U> | Directive<void, U>)[]): Directive<T, U> => {
+	const res: Directive<T, U> = (element, arg) => {
 		const instances = batch(() => args.map((directive) => directive(element, arg as any)));
 		return {
 			update(arg) {
@@ -225,6 +280,16 @@ export const mergeDirectives =
 			},
 		};
 	};
+	const ssrDirectives = (args as Directive<T, U>[]).filter(isSSRExecutableDirective).map((directive) => directive.ssr);
+	return ssrDirectives.length > 0
+		? makeSSRExecutable(
+				res,
+				ssrDirectives.length === args.length && (args as Directive<T, U>[]).every(isSelfSSRExecutableDirective)
+					? (res as SSRCompatibleDirective<T>)
+					: mergeDirectives(...ssrDirectives),
+			)
+		: res;
+};
 
 /**
  * Properties for configuring server-side rendering directives.
@@ -256,7 +321,7 @@ export interface AttributesDirectiveProps {
 	 * @remarks
 	 * Key-value pairs where keys are CSS style properties and values are style values.
 	 */
-	styles?: Partial<Record<keyof CSSStyleDeclaration, StyleValue | ReadableSignal<StyleValue>>>;
+	styles?: Partial<Record<StyleKey, StyleValue | ReadableSignal<StyleValue>>>;
 
 	/**
 	 * Class names to be added to an HTML element.
@@ -274,19 +339,20 @@ export interface AttributesDirectiveProps {
  * This function can take an optional parameter that corrspond to the second parameter of the created directive.
  * @returns A directive object with bound events, attributes, styles, and classNames.
  */
-export const createAttributesDirective =
-	<T = void>(propsFn: (arg: ReadableSignal<T>) => AttributesDirectiveProps) =>
-	(node: HTMLElement, args: T) => {
+export const createAttributesDirective = <T = void>(propsFn: (arg: ReadableSignal<T>) => AttributesDirectiveProps) =>
+	makeSSRExecutable((node, args: T) => {
 		const unsubscribers: (() => void)[] = [];
 		const args$ = writable(args);
 
 		const {events, attributes, styles, classNames} = propsFn(args$);
 
-		for (const [type, event] of Object.entries(events ?? {})) {
-			if (typeof event === 'function') {
-				unsubscribers.push(addEvent(node, type as keyof HTMLElementEventMap, event as any));
-			} else {
-				unsubscribers.push(addEvent(node, type as keyof HTMLElementEventMap, event.handler as any, event.options));
+		if (BROWSER) {
+			for (const [type, event] of Object.entries(events ?? {})) {
+				if (typeof event === 'function') {
+					unsubscribers.push(addEvent(node, type as keyof HTMLElementEventMap, event as any));
+				} else {
+					unsubscribers.push(addEvent(node, type as keyof HTMLElementEventMap, event.handler as any, event.options));
+				}
 			}
 		}
 
@@ -296,7 +362,7 @@ export const createAttributesDirective =
 			}
 		}
 
-		for (const [styleName, value] of Object.entries(styles ?? {})) {
+		for (const [styleName, value] of Object.entries(styles ?? {}) as Iterable<[StyleKey, StyleValue | ReadableSignal<StyleValue>]>) {
 			if (value) {
 				unsubscribers.push(bindStyle(node, styleName, toReadableStore(value)));
 			}
@@ -310,4 +376,38 @@ export const createAttributesDirective =
 			update: (args: T) => args$.set(args),
 			destroy: () => unsubscribers.forEach((fn) => fn()),
 		};
-	};
+	});
+
+export type DirectiveAndParam<T> = [Directive<T>, T];
+
+/**
+ * Returns an object with the attributes, style and class keys containing information derived from a list of directives.
+ *
+ *   - The `attributes` value is a JSON representation of key/value attributes, excepted for the `class` and `style` attributes
+ *   - The `classNames` value is an array of string representing the classes to be applied
+ *   - The `style` value is a JSON representation of the styles to be applied
+ *
+ * @param directives - List of directives to generate attributes from. Each parameter can be the directive or an array with the directive and its parameter
+ * @returns JSON object with the `attributes`, `class` and `style` keys.
+ */
+export const attributesData = <T extends any[]>(
+	...directives: {[K in keyof T]: DirectiveAndParam<T[K]> | Directive<void>}
+): {
+	attributes: Record<string, string>;
+	classNames: string[];
+	style: Partial<Record<StyleKey, StyleValue>>;
+} => {
+	const instances = [];
+	try {
+		const element = ssrHTMLElement();
+		for (const directive of directives) {
+			const [directiveFn, arg] = Array.isArray(directive) ? directive : [directive, undefined];
+			if (isSSRExecutableDirective(directiveFn)) {
+				instances.push(directiveFn.ssr(element, arg));
+			}
+		}
+		return (element as any)[ssrHTMLElementAttributesAndStyle]();
+	} finally {
+		instances.forEach((instance) => instance?.destroy?.());
+	}
+};
