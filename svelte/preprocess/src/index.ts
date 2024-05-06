@@ -17,7 +17,7 @@ export const directivesPreprocess = (): PreprocessorGroup => {
 			const parsedCode = parse(content, {filename});
 			const requiredImports = new Set<string>();
 
-			const extractValue = (attribute: Attribute) => {
+			const extractValue = (attribute: any) => {
 				const res: string[] = [];
 				const value = attribute.value;
 				for (const part of value) {
@@ -32,7 +32,7 @@ export const directivesPreprocess = (): PreprocessorGroup => {
 				return res.join('+');
 			};
 
-			const processItem = (item: TemplateNode) => {
+			const processItem = (item: any) => {
 				const actionAttributes = [];
 				const classAttributes = [];
 				if (item.attributes) {
