@@ -46,7 +46,7 @@ export const createBaseFrameworkProcessors = (): Record<Frameworks, StackblitzPr
 		async (project, sample) => {
 			project.files['src/main.ts'] = `import "./main.css";\nimport App from ${JSON.stringify(
 				`./${sample.files.svelte.entryPoint}`,
-			)};\nconst app = new App({target: document.getElementById('root')});\nexport default app;`;
+			)};\nimport {mount} from "svelte";\nmount(App, {target: document.getElementById('root')!});`;
 			project.template = 'node';
 		},
 	],
