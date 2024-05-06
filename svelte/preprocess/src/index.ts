@@ -1,7 +1,7 @@
 import MagicString from 'magic-string';
 import type {PreprocessorGroup} from 'svelte/compiler';
 import {parse} from 'svelte/compiler';
-import type {TemplateNode, Attribute} from 'svelte/types/compiler/interfaces';
+import type {TemplateNode, Attribute} from 'svelte/compiler';
 
 export const directivesPreprocess = (): PreprocessorGroup => {
 	return {
