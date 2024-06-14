@@ -32,12 +32,13 @@ const typeChecker = program.getTypeChecker();
  * @param nodes the typescript source code nodes
  * @returns the map to import used types
  */
-function getTypesImportsMap(nodes: Node[]) {
-	const importsMap = new Map<string, string>();
+function getTypesImportsMap(nodes: Node[], excludedNames: Set<string>) {
+	const importsByModule = new Map<string, string[]>();
+	const processedNames = new Set<string>(excludedNames);
 	function visit(node: Node) {
 		if (ts.isTypeReferenceNode(node)) {
 			const name = node.typeName.getText();
-			if (!importsMap.has(name)) {
+			if (!processedNames.has(name)) {
 				let symbol = typeChecker.getSymbolAtLocation(node.typeName);
 				while (symbol && symbol.flags & ts.SymbolFlags.Alias && !(symbol.declarations?.[0] && ts.isImportSpecifier(symbol.declarations?.[0]))) {
 					symbol = typeChecker.getImmediateAliasedSymbol(symbol);
@@ -54,14 +55,21 @@ function getTypesImportsMap(nodes: Node[]) {
 						modulePath.splice(1, 1); // remove src
 						moduleSpecifier = path.posix.join(modulePath.join('/'), moduleSpecifier);
 					}
-					importsMap.set(name, moduleSpecifier);
+					moduleSpecifier = moduleSpecifier.replace(/^@agnos-ui\/core\//, `@agnos-ui/${framework}-headless/`);
+					processedNames.add(name);
+					let importsArray = importsByModule.get(moduleSpecifier);
+					if (!importsArray) {
+						importsArray = [];
+						importsByModule.set(moduleSpecifier, importsArray);
+					}
+					importsArray.push(name);
 				}
 			}
 		}
 		ts.forEachChild(node, visit);
 	}
 	nodes.forEach(visit);
-	return importsMap;
+	return importsByModule;
 }
 
 const componentsProps: [string, string, number][] = [];
@@ -77,7 +85,7 @@ for (const component of components) {
 	const exportsList = typeChecker.getExportsOfModule(sourceFileSymbol);
 	let exports = '';
 	const exportedNodes: Node[] = [];
-	const exportNames = new Set();
+	const exportNames = new Set<string>();
 	for (const bootstrapExport of exportsList.filter(
 		(btsExport) => !btsExport.name.endsWith('CommonPropsAndState') && !btsExport.name.endsWith('ExtraProps') && !btsExport.name.startsWith('Common'),
 	)) {
@@ -105,14 +113,11 @@ for (const component of components) {
 			}
 		}
 	}
-	const mapImportsByModule = getTypesImportsMap(exportedNodes);
+	const mapImportsByModule = getTypesImportsMap(exportedNodes, exportNames);
 
 	let imports = '';
-	for (let [importName, importFile] of mapImportsByModule.entries()) {
-		if (!exportNames.has(importName)) {
-			importFile = importFile.replace(/^@agnos-ui\/core\//, `@agnos-ui/${framework}-headless/`);
-			imports += `import type {${importName}} from '${importFile}';\n`;
-		}
+	for (const [importFile, importNames] of mapImportsByModule.entries()) {
+		imports += `import type {${importNames.join(', ')}} from '${importFile}';\n`;
 	}
 	await writeFile(path.join(root, `${framework}/bootstrap/src/components/${component}/${component}.gen.ts`), imports + '\n' + exports);
 }
