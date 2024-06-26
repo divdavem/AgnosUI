@@ -1,4 +1,5 @@
 import {spawn} from 'child_process';
+import {readFile} from 'fs/promises';
 import {join} from 'path';
 import {fileURLToPath} from 'url';
 
@@ -23,9 +24,11 @@ export const publish = async (extraArgs = []) => {
 	const extraArgsStr = extraArgs.join(' ');
 	let failures = 0;
 	for (const directory of directories) {
-		console.log(`[${directory}] npm publish --access=public ${extraArgsStr}`);
+		const packageJson = await readFile(join(import.meta.dirname, '..', directory, 'package.json'), 'utf8');
+		const {name} = JSON.parse(packageJson);
+		console.log(name);
 		try {
-			const proc = spawn('npm', ['publish', '--access=public', ...extraArgs], {
+			const proc = spawn('npm', ['dist-tag', 'add', `${name}@0.3.1`, 'latest', ...extraArgs], {
 				stdio: 'inherit',
 				shell: process.platform == 'win32',
 				cwd: join(import.meta.dirname, '..', directory),
