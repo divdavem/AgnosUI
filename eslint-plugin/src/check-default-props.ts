@@ -92,7 +92,7 @@ const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string |
 		tsDocCommentText = tsDocCommentText.substring(0, tsDocCommentText.length - 1); // removes the ending slash
 		tsDocCommentText = tsDocCommentText.replace(defaultValueRegExp, '');
 		if (actualDefaultValue) {
-			tsDocCommentText = `${tsDocCommentText}\n${indent} * @defaultValue\n${indent} * ${addIndentation(actualDefaultValue, `${indent} * `)}\n${indent} */`;
+			tsDocCommentText = `${tsDocCommentText}\n${indent} * @defaultValue ${addIndentation(actualDefaultValue, `${indent} * `)}\n${indent} */`;
 		}
 		if (tsDocComment) {
 			yield fixer.replaceTextRange([tsDocComment.pos, tsDocComment.end], tsDocCommentText);
@@ -101,12 +101,12 @@ const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string |
 		}
 	};
 
-const wrapMarkdown = (value: string) => `\`\`\`ts\n${value}\n\`\`\``;
+const wrapMarkdown = (value: string) => (value.includes('\n') || value.length > 25 ? `\n\`\`\`ts\n${value}\n\`\`\`` : `\`${value}\``);
 
-const markdownRegExp = /^```ts\n([\s\S]*)\n```$/;
+const markdownRegExp = /^```ts\n([\s\S]*)\n```$|^`(.*)`$/;
 const unwrapMarkdown = (value: string) => {
 	const match = markdownRegExp.exec(value);
-	return match ? match[1] : value;
+	return match ? (match[1] ?? match[2]) : value;
 };
 
 export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
