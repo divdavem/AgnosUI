@@ -122,8 +122,9 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 					returnType.getProperties().forEach((prop) => {
 						const name = prop.name;
 						const actualDefaultValue = info[name];
-						const expectedDefaultValueLength = actualDefaultValue === 'undefined' ? 0 : 1;
-						const tsDocActualDefaultValue = actualDefaultValue === 'undefined' ? undefined : wrapMarkdown(actualDefaultValue);
+						const isUndefined = !actualDefaultValue || actualDefaultValue === 'undefined';
+						const expectedDefaultValueLength = isUndefined ? 0 : 1;
+						const tsDocActualDefaultValue = isUndefined ? undefined : wrapMarkdown(actualDefaultValue);
 						const defaultValueItems = prop.getJsDocTags(typeChecker).filter((tag) => tag.name === 'defaultValue');
 						let node = getDefaultValueFnNode;
 						const propDeclaration = prop.getDeclarations()?.[0];
