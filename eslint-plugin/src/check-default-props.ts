@@ -1,6 +1,8 @@
 import type {TSESTree} from '@typescript-eslint/utils';
 import {ESLintUtils} from '@typescript-eslint/utils';
+import type {ReportFixFunction} from '@typescript-eslint/utils/ts-eslint';
 import ts from 'typescript';
+import {addIndentation} from './ast-utils';
 
 const defaultConfigFnregExp = /^get([a-zA-Z]*)DefaultConfig$/;
 
@@ -60,6 +62,53 @@ function visitConfigFunctionDeclaration(functionDeclaration: ts.FunctionDeclarat
 	}
 	return docProperties;
 }
+
+const everythingAfterNonSpaceRegExp = /\S.*$/;
+const defaultValueRegExp = /\s*(?:\*\s+)?@defaultValue[\s\S]*?(?=@\w+|$)/g;
+
+const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string | undefined): ReportFixFunction =>
+	function* (fixer) {
+		const sourceFile = propDeclaration.getSourceFile();
+		const text = sourceFile.getText();
+		const existingComments = ts.getLeadingCommentRanges(text, propDeclaration.getFullStart());
+		let tsDocComment: ts.CommentRange | undefined;
+		let tsDocCommentText = '/** */';
+		let indent = '';
+		for (const comment of existingComments ?? []) {
+			if (comment.kind === ts.SyntaxKind.MultiLineCommentTrivia) {
+				const commentText = text.substring(comment.pos, comment.end);
+				if (commentText.startsWith('/**')) {
+					const {character: col} = sourceFile.getLineAndCharacterOfPosition(comment.pos);
+					indent = text.substring(comment.pos - col, comment.pos).replace(everythingAfterNonSpaceRegExp, '');
+					tsDocComment = comment;
+					tsDocCommentText = commentText;
+				}
+			}
+		}
+		if (!tsDocComment) {
+			const {character: col} = sourceFile.getLineAndCharacterOfPosition(propDeclaration.pos);
+			indent = text.substring(propDeclaration.pos - col, propDeclaration.pos).replace(everythingAfterNonSpaceRegExp, '');
+		}
+		tsDocCommentText = tsDocCommentText.substring(0, tsDocCommentText.length - 1); // removes the ending slash
+		tsDocCommentText = tsDocCommentText.replace(defaultValueRegExp, '');
+		if (actualDefaultValue) {
+			tsDocCommentText = `${tsDocCommentText}\n${indent} * @defaultValue\n${indent} * ${addIndentation(actualDefaultValue, `${indent} * `)}\n${indent} */`;
+		}
+		if (tsDocComment) {
+			yield fixer.replaceTextRange([tsDocComment.pos, tsDocComment.end], tsDocCommentText);
+		} else {
+			yield fixer.insertTextBeforeRange([propDeclaration.pos, propDeclaration.pos], tsDocCommentText);
+		}
+	};
+
+const wrapMarkdown = (value: string) => `\`\`\`ts\n${value}\n\`\`\``;
+
+const markdownRegExp = /^```ts\n([\s\S]*)\n```$/;
+const unwrapMarkdown = (value: string) => {
+	const match = markdownRegExp.exec(value);
+	return match ? match[1] : value;
+};
+
 export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 	create(context) {
 		return {
@@ -74,6 +123,7 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 						const name = prop.name;
 						const actualDefaultValue = info[name];
 						const expectedDefaultValueLength = actualDefaultValue === 'undefined' ? 0 : 1;
+						const tsDocActualDefaultValue = actualDefaultValue === 'undefined' ? undefined : wrapMarkdown(actualDefaultValue);
 						const defaultValueItems = prop.getJsDocTags(typeChecker).filter((tag) => tag.name === 'defaultValue');
 						let node = getDefaultValueFnNode;
 						const propDeclaration = prop.getDeclarations()?.[0];
@@ -88,6 +138,7 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 									data: {
 										propName: name,
 									},
+									fix: propDeclaration && node !== getDefaultValueFnNode ? createFix(propDeclaration, tsDocActualDefaultValue) : undefined,
 								});
 							} else {
 								context.report({
@@ -97,6 +148,7 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 										propName: name,
 										defaultValue: actualDefaultValue,
 									},
+									fix: propDeclaration && node !== getDefaultValueFnNode ? createFix(propDeclaration, tsDocActualDefaultValue) : undefined,
 								});
 							}
 						} else if (expectedDefaultValueLength > 0) {
@@ -104,15 +156,16 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 								defaultValueItems[0].text?.length === 1 && defaultValueItems[0].text?.[0].kind === 'text'
 									? defaultValueItems[0].text?.[0].text
 									: undefined;
-							if (foundDefaultValueTag !== actualDefaultValue) {
+							if (foundDefaultValueTag !== tsDocActualDefaultValue) {
 								context.report({
 									node,
 									messageId: 'incorrectDefaultValue',
 									data: {
 										propName: name,
 										defaultValue: actualDefaultValue,
-										foundValue: foundDefaultValueTag ?? 'invalid value',
+										foundValue: foundDefaultValueTag ? unwrapMarkdown(foundDefaultValueTag) : 'invalid value',
 									},
+									fix: propDeclaration && node !== getDefaultValueFnNode ? createFix(propDeclaration, tsDocActualDefaultValue) : undefined,
 								});
 							}
 						}
@@ -130,7 +183,7 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 		messages: {
 			missingDefaultValue: 'Missing default value in tsdoc for prop {{ propName }} (should be: {{ defaultValue}})',
 			expectedNoDefaultValue: 'Expected no default value in tsdoc for prop {{ propName }}',
-			incorrectDefaultValue: 'Mismatching default value in tsdoc for prop {{ propName }}, expected {{ defaultValue}}, found {{ foundValue }}',
+			incorrectDefaultValue: 'Default value mismatch in tsdoc for prop {{ propName }}, expected {{ defaultValue}}, found {{ foundValue }}',
 		},
 		type: 'problem',
 		schema: [],
