@@ -64,7 +64,7 @@ function visitConfigFunctionDeclaration(functionDeclaration: ts.FunctionDeclarat
 }
 
 const everythingAfterNonSpaceRegExp = /\S.*$/;
-const defaultValueRegExp = /\s*(?:\*\s+)?@defaultValue[\s\S]*?(?=@\w+|$)/g;
+const defaultValueRegExp = /(?<=^|\n)\s*(?:\*\s+)?@defaultValue[\s\S]*?(?=@\w+|$)/g;
 
 const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string | undefined): ReportFixFunction =>
 	function* (fixer) {
