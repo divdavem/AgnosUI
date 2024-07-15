@@ -92,7 +92,7 @@ const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string |
 		tsDocCommentText = tsDocCommentText.substring(0, tsDocCommentText.length - 1); // removes the ending slash
 		tsDocCommentText = tsDocCommentText.replace(defaultValueRegExp, '');
 		if (actualDefaultValue) {
-			tsDocCommentText = `${tsDocCommentText}\n${indent} * @defaultValue ${addIndentation(actualDefaultValue, `${indent} * `)}\n${indent} */`;
+			tsDocCommentText = `${tsDocCommentText}\n${indent} * @defaultValue${actualDefaultValue.includes('\n') ? `\n${indent} * ` : ' '}${addIndentation(actualDefaultValue, `${indent} * `)}\n${indent} */`;
 		}
 		if (tsDocComment) {
 			yield fixer.replaceTextRange([tsDocComment.pos, tsDocComment.end], tsDocCommentText);
@@ -101,7 +101,8 @@ const createFix = (propDeclaration: ts.Declaration, actualDefaultValue: string |
 		}
 	};
 
-const wrapMarkdown = (value: string) => (value.includes('\n') || value.length > 25 ? `\n\`\`\`ts\n${value}\n\`\`\`` : `\`${value}\``);
+const wrapMarkdown = (value: string) =>
+	value.includes('(') || value.includes('\n') || value.length > 25 ? `\`\`\`ts\n${value}\n\`\`\`` : `\`${value}\``;
 
 const markdownRegExp = /^```ts\n([\s\S]*)\n```$|^`(.*)`$/;
 const unwrapMarkdown = (value: string) => {
