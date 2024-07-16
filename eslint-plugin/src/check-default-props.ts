@@ -6,61 +6,86 @@ import {addIndentation} from './ast-utils';
 
 const defaultConfigFnregExp = /^get([a-zA-Z]*)DefaultConfig$/;
 
-function visitConfigFunctionDeclaration(functionDeclaration: ts.FunctionDeclaration, typeChecker: ts.TypeChecker) {
-	const lastStatement = functionDeclaration.body!.statements.at(-1);
-	const docProperties: Record<string, string> = {};
-	if (ts.isReturnStatement(lastStatement!)) {
-		let expression = lastStatement.expression;
-		if (ts.isAsExpression(expression!)) {
-			expression = expression.expression;
+function evaluateFunctionCall(functionLike: ts.FunctionLikeDeclaration, typeChecker: ts.TypeChecker) {
+	const body = functionLike.body;
+	if (body) {
+		if (ts.isExpression(body)) {
+			return evaluateExpression(body, typeChecker);
 		}
-		if (ts.isObjectLiteralExpression(expression!)) {
-			for (const spreadAssignment of expression.properties) {
-				if (ts.isSpreadAssignment(spreadAssignment)) {
-					const spreadExpression = spreadAssignment.expression;
-					if (ts.isCallExpression(spreadExpression)) {
-						let symbol = typeChecker.getSymbolAtLocation(spreadExpression.expression);
-						if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
-							symbol = typeChecker.getAliasedSymbol(symbol);
-						}
-						const declaration = symbol!.getDeclarations()![0];
-						if (ts.isImportSpecifier(declaration)) {
-							const exportedNode = typeChecker.getExportSpecifierLocalTargetSymbol(declaration.propertyName ?? declaration.name);
-							const functionDeclaration = exportedNode!.getDeclarations()![0];
-							if (ts.isFunctionDeclaration(functionDeclaration)) {
-								Object.assign(docProperties, visitConfigFunctionDeclaration(functionDeclaration, typeChecker)!);
-							}
-						} else if (ts.isFunctionDeclaration(declaration)) {
-							Object.assign(docProperties, visitConfigFunctionDeclaration(declaration, typeChecker)!);
-						}
-					} else {
-						const symbol = typeChecker.getSymbolAtLocation(spreadExpression);
-						const declaration = symbol!.getDeclarations()![0];
-						if (ts.isVariableDeclaration(declaration)) {
-							const initializer = declaration.initializer;
-							if (ts.isObjectLiteralExpression(initializer!)) {
-								const properties = initializer.properties;
-								for (const property of properties) {
-									if (ts.isPropertyAssignment(property)) {
-										const {name, initializer} = property;
-										if (ts.isIdentifier(name)) {
-											docProperties[name.text] = initializer.getText() === 'noop' ? '() => {}' : initializer.getText();
-										}
-									} else {
-										throw new Error('Unknow assignement in config');
-									}
-								}
-							}
-						}
-					}
+		if (ts.isBlock(body) && body.statements.length === 1 && ts.isReturnStatement(body.statements[0])) {
+			return evaluateExpression(body.statements[0].expression!, typeChecker);
+		}
+	}
+	throw new Error('Unexpected kind of function');
+}
+
+function getSymbolDeclaration(node: ts.Node, typeChecker: ts.TypeChecker): ts.Declaration | undefined {
+	let symbol = typeChecker.getSymbolAtLocation(node);
+	if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+		symbol = typeChecker.getAliasedSymbol(symbol);
+	}
+	const declaration = symbol?.getDeclarations()?.[0];
+	if (declaration) {
+		if (ts.isImportSpecifier(declaration)) {
+			const exportedNode = typeChecker.getExportSpecifierLocalTargetSymbol(declaration.propertyName ?? declaration.name);
+			return exportedNode?.getDeclarations()?.[0];
+		}
+	}
+	return declaration;
+}
+
+function evaluateExpression(expression: ts.Expression, typeChecker: ts.TypeChecker): ts.Expression {
+	if (ts.isAsExpression(expression)) {
+		return evaluateExpression(expression.expression, typeChecker);
+	} else if (ts.isCallExpression(expression)) {
+		const declaration = getSymbolDeclaration(expression.expression, typeChecker);
+		if (declaration) {
+			if (ts.isVariableDeclaration(declaration) && declaration.initializer) {
+				const fn = evaluateExpression(declaration.initializer, typeChecker);
+				if (ts.isFunctionExpression(fn) || ts.isArrowFunction(fn)) {
+					return evaluateFunctionCall(fn, typeChecker);
 				}
 			}
+			if (ts.isFunctionDeclaration(declaration)) {
+				return evaluateFunctionCall(declaration, typeChecker);
+			}
+		}
+	} else if (ts.isIdentifier(expression)) {
+		const declaration = getSymbolDeclaration(expression, typeChecker);
+		if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer) {
+			return evaluateExpression(declaration.initializer, typeChecker);
 		}
 	}
-	if (Object.keys(docProperties).length === 0) {
-		throw new Error(`Could not properly compute widget default config from function ${functionDeclaration.name!.getText()}`);
+	return expression;
+}
+
+function evaluateObjectLitteral(expression: ts.ObjectLiteralExpression, typeChecker: ts.TypeChecker) {
+	const res: Record<string, string> = {};
+	for (const property of expression.properties) {
+		if (ts.isPropertyAssignment(property)) {
+			const {name, initializer} = property;
+			if (ts.isIdentifier(name)) {
+				res[name.text] = initializer.getText() === 'noop' ? '() => {}' : initializer.getText();
+				continue;
+			}
+		} else if (ts.isSpreadAssignment(property)) {
+			const expr = evaluateExpression(property.expression, typeChecker);
+			if (ts.isObjectLiteralExpression(expr)) {
+				Object.assign(res, evaluateObjectLitteral(expr, typeChecker));
+				continue;
+			}
+		}
+		throw new Error('Unexpected kind of property');
 	}
-	return docProperties;
+	return res;
+}
+
+function visitFunctionLike(node: ts.FunctionLikeDeclaration, typeChecker: ts.TypeChecker) {
+	const expression = evaluateFunctionCall(node, typeChecker);
+	if (ts.isObjectLiteralExpression(expression)) {
+		return evaluateObjectLitteral(expression, typeChecker);
+	}
+	throw new Error('Unexpected kind of expression');
 }
 
 const everythingAfterNonSpaceRegExp = /\S.*$/;
@@ -118,7 +143,7 @@ export const checkDefaultPropsRule = ESLintUtils.RuleCreator.withoutDocs({
 					const parserServices = ESLintUtils.getParserServices(context);
 					const tsNode: ts.FunctionDeclaration = parserServices.esTreeNodeToTSNodeMap.get(getDefaultValueFnNode);
 					const typeChecker = parserServices.program.getTypeChecker();
-					const info = visitConfigFunctionDeclaration(tsNode, typeChecker);
+					const info = visitFunctionLike(tsNode, typeChecker);
 					const returnType = typeChecker.getReturnTypeOfSignature(typeChecker.getSignatureFromDeclaration(tsNode)!);
 					returnType.getProperties().forEach((prop) => {
 						const name = prop.name;
