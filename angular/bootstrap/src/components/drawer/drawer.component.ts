@@ -1,7 +1,6 @@
 import type {SlotContent, TransitionFn} from '@agnos-ui/angular-headless';
 import {
 	auBooleanAttribute,
-	auNumberAttribute,
 	BaseWidgetDirective,
 	callWidgetFactory,
 	ComponentTemplate,
@@ -64,17 +63,16 @@ export class DrawerBodyDirective {
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	imports: [SlotDirective, DrawerStructureDirective, UseDirective],
 	template: ` <ng-template auDrawerStructure #structure let-state="state" let-api="api" let-directives="directives">
-		@if (state.header()) {
-			<div class="au-drawer-header">
-				<ng-template [auSlot]="state.header()" [auSlotProps]="{state, api, directives}" />
+		<div class="au-drawer-content">
+			@if (state.header()) {
+				<div class="au-drawer-header">
+					<ng-template [auSlot]="state.header()" [auSlotProps]="{state, api, directives}" />
+				</div>
+			}
+			<div class="au-drawer-body">
+				<ng-template [auSlot]="state.children()" [auSlotProps]="{state, api, directives}" />
 			</div>
-		}
-		<div class="au-drawer-body">
-			<ng-template [auSlot]="state.children()" [auSlotProps]="{state, api, directives}" />
 		</div>
-		@if (state.resizable()) {
-			<div [auUse]="directives.splitterDirective"></div>
-		}
 	</ng-template>`,
 })
 class DrawerDefaultSlotsComponent {
@@ -102,6 +100,9 @@ export const drawerDefaultSlotStructure: SlotContent<DrawerContext> = new Compon
 				<div [auUse]="directives.containerDirective">
 					<ng-template [auSlot]="state.structure()" [auSlotProps]="{state, api, directives}" />
 				</div>
+				@if (state.resizable()) {
+					<div [auUse]="directives.splitterDirective"></div>
+				}
 			</div>
 		}
 		@if (!state.backdropHidden()) {
@@ -214,42 +215,16 @@ export class DrawerComponent extends BaseWidgetDirective<DrawerWidget> {
 	readonly resizable = input(undefined, {alias: 'auResizable', transform: auBooleanAttribute});
 
 	/**
-	 * The width of the drawer in pixels.
+	 * An event emitted when the drawer size (width or height depending on the orientation).
 	 *
-	 * @defaultValue `200`
-	 */
-	readonly width = input(undefined, {alias: 'auWidth', transform: auNumberAttribute});
-
-	/**
-	 * The height of the drawer in pixels.
-	 *
-	 * @defaultValue `200`
-	 */
-	readonly height = input(undefined, {alias: 'auHeight', transform: auNumberAttribute});
-
-	/**
-	 * An event emitted when the width is changed.
-	 *
-	 * Event payload is equal to the newly selected width.
+	 * Event payload is equal to the newly selected width or height.
 	 *
 	 * @defaultValue
 	 * ```ts
 	 * () => {}
 	 * ```
 	 */
-	readonly widthChange = output<number>({alias: 'auWidthChange'});
-
-	/**
-	 * An event emitted when the height is changed.
-	 *
-	 * Event payload is equal to the newly selected height.
-	 *
-	 * @defaultValue
-	 * ```ts
-	 * () => {}
-	 * ```
-	 */
-	readonly heightChange = output<number>({alias: 'auHeightChange'});
+	readonly sizeChange = output<number>({alias: 'auSizeChange'});
 
 	/**
 	 * Event to be triggered when the visible property changes.
@@ -297,11 +272,8 @@ export class DrawerComponent extends BaseWidgetDirective<DrawerWidget> {
 				events: {
 					onHidden: () => this.hidden.emit(),
 					onShown: () => this.shown.emit(),
-					onWidthChange: (width: number) => {
-						this.widthChange.emit(width);
-					},
-					onHeightChange: (height: number) => {
-						this.heightChange.emit(height);
+					onSizeChange: (size: number) => {
+						this.sizeChange.emit(size);
 					},
 					onVisibleChange: (event) => this.visibleChange.emit(event),
 				},
