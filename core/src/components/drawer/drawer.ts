@@ -397,24 +397,21 @@ export const createDrawer: WidgetFactory<DrawerWidget> = createWidgetFactory('dr
 		},
 	}));
 
-	const direction = computed(() => (['inline-start', 'block-start'].some((placement) => className$().includes(placement)) ? 1 : -1));
+	const direction$ = computed(() => (['inline-start', 'block-start'].some((placement) => className$().includes(placement)) ? 1 : -1));
 
-	let startSize = 0;
-	const splitterDirective = createPointerdownPositionDirective({
-		onMoveStart() {
-			const drawerElement = drawerElement$();
-			if (drawerElement) {
-				startSize = isVertical$() ? drawerElement.offsetHeight : drawerElement.offsetWidth;
-			}
-		},
-		onMove(position) {
-			size$.set(Math.max(0, startSize + direction() * position[isVertical$() ? 'dy' : 'dx']));
-		},
-		onMoveEnd() {
-			const newSize = drawerElement$()![isVertical$() ? 'offsetHeight' : 'offsetWidth'];
-			size$.set(newSize);
-			onSizeChange$()(newSize);
-		},
+	const splitterDirective = createPointerdownPositionDirective(() => {
+		const drawerElement = drawerElement$();
+		if (!drawerElement) {
+			return;
+		}
+		const direction = direction$();
+		const vertical = isVertical$();
+		let startSize = vertical ? drawerElement.offsetHeight : drawerElement.offsetWidth;
+		return {
+			onMove(position) {
+				size$.set(Math.max(0, startSize + direction * position[vertical ? 'dy' : 'dx']));
+			},
+		};
 	});
 
 	const visible$ = transition.stores.visible$;

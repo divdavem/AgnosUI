@@ -4,134 +4,156 @@ import {noop} from '../utils/func';
 import {addEvent} from '../utils/internal/dom';
 
 /**
- * Represents the position of the mouse during a mousedown event.
- * Typically used to capture the x and y coordinates of the mouse
- * when the user presses a mouse button.
+ * Represents the position of the pointer after a pointerdown event.
  *
  */
 export interface PointerPosition {
 	/**
-	 * The initial X coordinate where the mouse button was pressed down.
+	 * The initial X coordinate where the pointerdown event occured.
 	 */
 	xOrigin: number;
 
 	/**
-	 * The initial Y coordinate where the mouse button was pressed down.
+	 * The initial Y coordinate where the pointerdown event occured.
 	 */
 	yOrigin: number;
 
 	/**
 	 * The horizontal displacement (delta X) from the origin point.
-	 * Represents how far the mouse has moved horizontally since mousedown.
+	 * Represents how far the pointer has moved horizontally since pointerdown.
 	 */
 	dx: number;
 
 	/**
 	 * The vertical displacement (delta X) from the origin point.
-	 * Represents how far the mouse has moved vertically since mousedown.
+	 * Represents how far the pointer has moved vertically since pointerdown.
 	 */
 	dy: number;
 }
 
 /**
- * Configuration options for tracking mouse position after a mousedown event.
+ * Configuration options for tracking pointer position after a pointerdown event.
  */
 export interface PointerdownPositionProps {
 	/**
-	 * Callback function invoked when the mouse moves after a mousedown event.
-	 * @param position - The current mouse position information including origin and current coordinates.
-	 */
-	onMoveStart?: (position: PointerPosition) => void;
-
-	/**
-	 * Callback function invoked when the mouse moves after a mousedown event.
+	 * Callback function invoked when the mouse moves after a pointerdown event.
 	 * @param position - The current mouse position information including origin and current coordinates.
 	 */
 	onMove?: (position: PointerPosition) => void;
 
 	/**
-	 * Callback function invoked when the mouse moves after a mousedown event.
-	 * @param position - The current mouse position information including origin and current coordinates.
+	 * Callback function invoked when the move ends after a pointerdown event.
 	 */
-	onMoveEnd?: (position: PointerPosition) => void;
+	onEnd?: () => void;
 }
 
 /**
- * Creates a directive for tracking mouse position during drag operations.
+ * Creates a directive for tracking pointer position during drag operations.
  *
- * This function sets up event listeners that track mouse movements from an initial mousedown event
- * through mousemove and mouseup events. It provides a directive that can be attached to DOM elements
+ * This function sets up event listeners that track pointer movements from an initial pointerdown event
+ * through pointermover and pointerup events. It provides a directive that can be attached to DOM elements
  * to enable drag tracking functionality.
  *
- * @param options - Configuration options for the pointerdown position tracker.
- * @param options.onMoveStart - Callback function invoked when the move starts.
- * @param options.onMove - Callback function invoked when the mouse moves during a drag operation.
- * @param options.onMoveEnd - Callback function invoked when the move ends.
+ * @param onStart - Callback function invoked when the pointerdown event happens.
  *
- * @returns The mousedownPositionDirective that can be applied to elements.
+ * @returns The pointerdownPositionDirective that can be applied to elements.
  *
  * @example
  * ```typescript
- * const pointerPositionDirective = createPointerdownPositionDirective({
- *   onMoveStart: (position) => {
- *     console.log(`Drag started at (${position.xOrigin}, ${position.yOrigin})`);
- *   },
- *   onMove: (position) => {
- *     console.log(`Dragging: dx=${position.dx}, dy=${position.dy}`);
- *   },
- *   onMoveEnd: (position) => {
- *     console.log(`Drag ended at (${position.xOrigin + position.dx}, ${position.yOrigin + position.dy})`);
- *   }
+ * const pointerPositionDirective = createPointerdownPositionDirective((position) => {
+ *   console.log(`Drag started at (${position.xOrigin}, ${position.yOrigin})`);
+ *   return {
+ *     onMove: (position) => {
+ *       console.log(`Dragging: dx=${position.dx}, dy=${position.dy}`);
+ *     },
+ *     onEnd: () => {
+ *       console.log(`Drag ended`);
+ *     }
+ *   };
  * });
  * ```
  */
-export function createPointerdownPositionDirective({onMoveStart, onMove, onMoveEnd}: PointerdownPositionProps = {}): Directive {
-	const pointerdownPositionDirective: Directive = browserDirective((element) => {
+export const createPointerdownPositionDirective = (onStart: (position: PointerPosition) => PointerdownPositionProps | undefined): Directive =>
+	browserDirective((element) => {
+		interface PointerState {
+			xOrigin: number;
+			yOrigin: number;
+			events: PointerdownPositionProps;
+		}
+		const activePointerIds = new Map<number, PointerState>();
+
 		let removePointerMoveEvent = noop;
 		let removePointerUpEvent = noop;
 		let removePointerCancelEvent = noop;
 
-		let position: PointerPosition = {xOrigin: 0, yOrigin: 0, dx: 0, dy: 0};
-		function assignPosition(e: MouseEvent) {
-			return Object.assign(position, {
-				dx: e.clientX - position.xOrigin,
-				dy: e.clientY - position.yOrigin,
-			});
-		}
+		const removeEvents = () => {
+			removePointerMoveEvent();
+			removePointerUpEvent();
+			removePointerCancelEvent();
+			removePointerMoveEvent = noop;
+			removePointerUpEvent = noop;
+			removePointerCancelEvent = noop;
+		};
+
+		const addEvents = () => {
+			removePointerMoveEvent = addEvent(element, 'pointermove', onMove);
+			removePointerUpEvent = addEvent(element, 'pointerup', onEnd);
+			removePointerCancelEvent = addEvent(element, 'pointercancel', onEnd);
+		};
+
+		const computePosition = (state: PointerState, e: PointerEvent): PointerPosition => ({
+			xOrigin: state.xOrigin,
+			yOrigin: state.yOrigin,
+			dx: e.clientX - state.xOrigin,
+			dy: e.clientY - state.yOrigin,
+		});
+
+		const onMove = (e: PointerEvent) => {
+			const move = activePointerIds.get(e.pointerId);
+			move?.events.onMove?.(computePosition(move, e));
+		};
+
+		const onEnd = (e: PointerEvent) => {
+			const pointerId = e.pointerId;
+			const move = activePointerIds.get(pointerId);
+			activePointerIds.delete(pointerId);
+			if (activePointerIds.size === 0) {
+				removeEvents();
+			}
+			move?.events.onEnd?.();
+		};
 
 		const removePointerDownEvent = addEvent(element, 'pointerdown', (e: PointerEvent) => {
-			e.preventDefault();
-
-			(e.target as HTMLElement).setPointerCapture(e.pointerId);
-
-			position = {xOrigin: e.clientX, yOrigin: e.clientY, dx: 0, dy: 0};
-			onMoveStart?.(position);
-
-			removePointerMoveEvent = addEvent(document, 'pointermove', (e: PointerEvent) => {
-				e.preventDefault();
-				onMove?.(assignPosition(e));
-			});
-
-			function moveEnd(e: PointerEvent) {
-				e.preventDefault();
-				removePointerMoveEvent();
-				removePointerUpEvent();
-				removePointerCancelEvent();
-				onMoveEnd?.(assignPosition(e));
+			const pointerId = e.pointerId;
+			let existingMove = activePointerIds.get(pointerId);
+			if (existingMove) {
+				// maybe this cannot happen, but we include the code to be sure of consistency
+				onEnd(e);
+			} else {
+				element.setPointerCapture(pointerId);
 			}
-
-			removePointerUpEvent = addEvent(document, 'pointerup', moveEnd);
-			removePointerCancelEvent = addEvent(document, 'pointercancel', moveEnd);
+			existingMove = {
+				xOrigin: e.clientX,
+				yOrigin: e.clientY,
+				events: {},
+			};
+			const startResult = onStart(computePosition(existingMove, e));
+			if (startResult) {
+				existingMove.events = startResult;
+				if (activePointerIds.size === 0) {
+					addEvents();
+				}
+				activePointerIds.set(pointerId, existingMove);
+			}
 		});
+
 		return {
 			destroy() {
 				removePointerDownEvent();
-				removePointerMoveEvent();
-				removePointerUpEvent();
-				removePointerCancelEvent();
+				removeEvents();
+				for (const [, {events}] of activePointerIds) {
+					events?.onEnd?.();
+				}
 			},
 		};
 	});
-
-	return pointerdownPositionDirective;
-}
