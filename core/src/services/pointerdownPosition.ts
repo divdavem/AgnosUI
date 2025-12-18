@@ -109,11 +109,13 @@ export const createPointerdownPositionDirective = (onStart: (position: PointerPo
 		});
 
 		const onMove = (e: PointerEvent) => {
+			e.preventDefault();
 			const move = activePointerIds.get(e.pointerId);
 			move?.events.onMove?.(computePosition(move, e));
 		};
 
 		const onEnd = (e: PointerEvent) => {
+			e.preventDefault();
 			const pointerId = e.pointerId;
 			const move = activePointerIds.get(pointerId);
 			activePointerIds.delete(pointerId);
@@ -124,6 +126,7 @@ export const createPointerdownPositionDirective = (onStart: (position: PointerPo
 		};
 
 		const removePointerDownEvent = addEvent(element, 'pointerdown', (e: PointerEvent) => {
+			e.preventDefault();
 			const pointerId = e.pointerId;
 			let existingMove = activePointerIds.get(pointerId);
 			if (existingMove) {
@@ -154,6 +157,7 @@ export const createPointerdownPositionDirective = (onStart: (position: PointerPo
 				for (const [, {events}] of activePointerIds) {
 					events?.onEnd?.();
 				}
+				activePointerIds.clear();
 			},
 		};
 	});
